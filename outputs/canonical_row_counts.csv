@@ -9,3 +9,4 @@ fact_loan_month,B,308884
 hpi,all,7740
 cash_rate,all,129
 agg_deal_month,all,2567
+dim_period,all,60

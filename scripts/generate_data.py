@@ -2,8 +2,10 @@
 
     python scripts/generate_data.py --profile full --out data/raw
 
-Writes the raw files into --out, then outputs/pool_monthly_truth.csv and
-outputs/calibration.csv. No network code.
+Writes the raw files into --out, then pool_monthly_truth.csv and calibration.csv into
+--outputs. --outputs defaults to the repo's outputs/ for --profile full, otherwise to
+<--out>/../outputs, so a small run never overwrites the committed full-profile CSVs
+(instruction 03 E 3.0). No network code.
 """
 
 from __future__ import annotations
@@ -25,7 +27,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", choices=["full", "small"], required=True)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--outputs", type=Path, default=None)
     args = ap.parse_args(argv)
+    if args.outputs is None:
+        args.outputs = ROOT / "outputs" if args.profile == "full" else args.out.resolve().parent / "outputs"
 
     t0 = time.perf_counter()
     cfg = load_config(ROOT / "config.toml")
@@ -33,8 +38,8 @@ def main(argv=None) -> int:
     write_raw(run, args.out)
     t_raw = time.perf_counter() - t0
 
-    outputs = ROOT / "outputs"
-    outputs.mkdir(exist_ok=True)
+    outputs = args.outputs
+    outputs.mkdir(parents=True, exist_ok=True)
     write_csv(pool_monthly(run["panel"]), outputs / "pool_monthly_truth.csv")
     cal = calibration(run["cfg"], run["panel"], run["loans"], run["deals"])
     write_csv(cal, outputs / "calibration.csv")

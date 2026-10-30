@@ -13,7 +13,7 @@ import pandas as pd
 
 from rmbsq.canonical.ingest import ingest_format_a, ingest_format_b
 from rmbsq.config import load_config
-from rmbsq.synth.months import from_period
+from rmbsq.synth.months import from_period, month_index, month_labels, to_period
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -180,6 +180,14 @@ SELECT CAST(suburb AS VARCHAR) AS suburb, CAST(period AS DATE) AS period, CAST(h
 FROM hpi_df
 """
 
+# instruction 03 D.4: period labels by join, so compiled SQL needs no date functions
+DIM_PERIOD_SQL = """
+CREATE TABLE dim_period AS
+SELECT CAST(period AS DATE) AS period, CAST(month_label AS VARCHAR) AS month_label,
+       CAST(quarter_label AS VARCHAR) AS quarter_label, CAST(year_label AS VARCHAR) AS year_label
+FROM period_df ORDER BY period
+"""
+
 CASH_SQL = """
 CREATE TABLE cash_rate AS
 SELECT CAST(period AS DATE) AS period, CAST(rate AS DOUBLE) AS rate FROM cash_df ORDER BY period
@@ -239,12 +247,27 @@ SELECT strftime(period, '%Y-%m') AS period,
 FROM p ORDER BY period
 """
 
-TABLES = ["dim_deal", "dim_loan", "fact_loan_month", "hpi", "cash_rate", "agg_deal_month"]
+TABLES = ["dim_deal", "dim_loan", "fact_loan_month", "hpi", "cash_rate", "agg_deal_month", "dim_period"]
 FACT_MONEY = ["opening_balance_c", "scheduled_principal_c", "curtailment_c", "closing_balance_c", "exit_balance_c", "loss_c"]
 
 
 def _with_months(df: pd.DataFrame, col: str) -> pd.DataFrame:
     return df.assign(**{col: pd.to_datetime(df[col], format="%Y-%m")})
+
+
+def build_dim_period(cfg) -> pd.DataFrame:
+    """Instruction 03 D.4: 1 row per month from window_start to window_end, for example
+    2025-04-01, 2025-04, 2025-Q2, 2025."""
+    months = np.arange(month_index(cfg.calendar.window_start), month_index(cfg.calendar.window_end) + 1)
+    labels = month_labels(months)
+    year = (months // 12 + 1970).astype(str)
+    quarter = (months % 12 // 3 + 1).astype(str)
+    return pd.DataFrame({
+        "period": to_period(months),
+        "month_label": labels,
+        "quarter_label": np.char.add(np.char.add(year, "-Q"), quarter),
+        "year_label": year,
+    })
 
 
 def build_canonical(raw_dir: Path, db_path: Path, cfg) -> None:
@@ -258,6 +281,7 @@ def build_canonical(raw_dir: Path, db_path: Path, cfg) -> None:
     deals_df = deals.assign(issue_balance_c=np.round(deals["issue_balance"].to_numpy() * 100).astype(np.int64))
     hpi_df = _with_months(pd.read_parquet(raw_dir / "hpi.parquet"), "period")
     cash_df = _with_months(pd.read_parquet(raw_dir / "cash_rate.parquet"), "period")
+    period_df = build_dim_period(cfg)
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if db_path.exists():
@@ -266,7 +290,7 @@ def build_canonical(raw_dir: Path, db_path: Path, cfg) -> None:
     try:
         con.execute("SET threads = 1")
         for name, df in [("deals_df", deals_df), ("dim_loan_df", dim_loan_df), ("rows_df", rows_df),
-                         ("hpi_df", hpi_df), ("cash_df", cash_df)]:
+                         ("hpi_df", hpi_df), ("cash_df", cash_df), ("period_df", period_df)]:
             con.register(name, df)
         con.execute(DIM_DEAL_SQL.format(issue_balance=_money("issue_balance_c")))
         con.execute(DIM_LOAN_SQL.format(orig_balance=_money("orig_balance_c"), orig_valuation=_money("orig_valuation_c")))
@@ -277,6 +301,7 @@ def build_canonical(raw_dir: Path, db_path: Path, cfg) -> None:
         if dupes:
             raise ValueError(f"fact_loan_month has {dupes} duplicate (loan_id, period) keys")
         con.execute(AGG_SQL)
+        con.execute(DIM_PERIOD_SQL)
     finally:
         con.close()
 

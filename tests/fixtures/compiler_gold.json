@@ -1,0 +1,411 @@
+[
+  {
+    "id": "S01",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "arrears_90p_bal"
+      ],
+      "group_by": [],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01'\n  GROUP BY f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT period_label FROM b),\nstock AS (\n  SELECT period_label, CAST(a90_bal / bal AS DOUBLE) AS arrears_90p_bal\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.period_label, s.arrears_90p_bal\nFROM keys k LEFT JOIN stock s USING (period_label)\nORDER BY k.period_label",
+    "route_auto": "agg",
+    "rows_small": 1,
+    "rows_full": 1
+  },
+  {
+    "id": "S02",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "balance_total",
+        "loan_count"
+      ],
+      "group_by": [
+        "originator"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT d.originator AS originator, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01'\n  GROUP BY d.originator, f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT originator, period_label FROM b),\nstock AS (\n  SELECT originator, period_label, CAST(bal AS DOUBLE) AS balance_total, CAST(loan_count AS DOUBLE) AS loan_count\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY originator, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.originator, k.period_label, s.balance_total, s.loan_count\nFROM keys k LEFT JOIN stock s USING (originator, period_label)\nORDER BY k.originator, k.period_label",
+    "route_auto": "agg",
+    "rows_small": 4,
+    "rows_full": 5
+  },
+  {
+    "id": "S03",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "arrears_30p_bal"
+      ],
+      "group_by": [
+        "state"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2024-01",
+        "end": "2024-06",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT l.state AS state, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2024-01-01' AND DATE '2024-06-01'\n  GROUP BY l.state, f.period\n),\nb AS (SELECT *, strftime(period, '%Y-%m') AS period_label FROM parts),\nkeys AS (SELECT DISTINCT state, period_label FROM b),\nstock AS (\n  SELECT state, period_label, CAST(a30_bal / bal AS DOUBLE) AS arrears_30p_bal\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY state, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.state, k.period_label, s.arrears_30p_bal\nFROM keys k LEFT JOIN stock s USING (state, period_label)\nORDER BY k.state, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 30,
+    "rows_full": 30
+  },
+  {
+    "id": "S04",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "cpr"
+      ],
+      "group_by": [
+        "city"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "quarter",
+        "start": "2025-01",
+        "end": "2025-12",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT l.city AS city, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2025-01-01' AND DATE '2025-12-01'\n  GROUP BY l.city, f.period\n),\nb AS (SELECT *, CAST(year(period) AS VARCHAR) || '-Q' || CAST(quarter(period) AS VARCHAR) AS period_label FROM parts),\nkeys AS (SELECT DISTINCT city, period_label FROM b),\nflow AS (\n  SELECT city, period_label,\n    CASE WHEN COUNT(*) FILTER (WHERE smm_den > 0) = 0 THEN NULL\n         WHEN MAX(smm_num / smm_den) FILTER (WHERE smm_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - smm_num / smm_den)) FILTER (WHERE smm_den > 0)) END AS smm_p,\n    COUNT(*) FILTER (WHERE smm_den > 0) AS smm_n,\n    CASE WHEN COUNT(*) FILTER (WHERE mdr_den > 0) = 0 THEN NULL\n         WHEN MAX(mdr_num / mdr_den) FILTER (WHERE mdr_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - mdr_num / mdr_den)) FILTER (WHERE mdr_den > 0)) END AS mdr_p,\n    COUNT(*) FILTER (WHERE mdr_den > 0) AS mdr_n\n  FROM b GROUP BY city, period_label\n)\nSELECT k.city, k.period_label, 1 - POWER(1 - w.smm_p, 12.0 / w.smm_n) AS cpr\nFROM keys k LEFT JOIN flow w USING (city, period_label)\nORDER BY k.city, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 20,
+    "rows_full": 20
+  },
+  {
+    "id": "S05",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "cdr"
+      ],
+      "group_by": [],
+      "filters": {},
+      "time": {
+        "grain": "year",
+        "start": "2022-01",
+        "end": "2025-12",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2022-01-01' AND DATE '2025-12-01'\n  GROUP BY f.period\n),\nb AS (SELECT *, CAST(year(period) AS VARCHAR) AS period_label FROM parts),\nkeys AS (SELECT DISTINCT period_label FROM b),\nflow AS (\n  SELECT period_label,\n    CASE WHEN COUNT(*) FILTER (WHERE smm_den > 0) = 0 THEN NULL\n         WHEN MAX(smm_num / smm_den) FILTER (WHERE smm_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - smm_num / smm_den)) FILTER (WHERE smm_den > 0)) END AS smm_p,\n    COUNT(*) FILTER (WHERE smm_den > 0) AS smm_n,\n    CASE WHEN COUNT(*) FILTER (WHERE mdr_den > 0) = 0 THEN NULL\n         WHEN MAX(mdr_num / mdr_den) FILTER (WHERE mdr_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - mdr_num / mdr_den)) FILTER (WHERE mdr_den > 0)) END AS mdr_p,\n    COUNT(*) FILTER (WHERE mdr_den > 0) AS mdr_n\n  FROM b GROUP BY period_label\n)\nSELECT k.period_label, 1 - POWER(1 - w.mdr_p, 12.0 / w.mdr_n) AS cdr\nFROM keys k LEFT JOIN flow w USING (period_label)\nORDER BY k.period_label",
+    "route_auto": "agg",
+    "rows_small": 4,
+    "rows_full": 4
+  },
+  {
+    "id": "S06",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "wa_indexed_ltv"
+      ],
+      "group_by": [
+        "vintage_year"
+      ],
+      "filters": {
+        "state": [
+          "NSW"
+        ]
+      },
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT l.vintage_year AS vintage_year, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01' AND l.state IN ('NSW')\n  GROUP BY l.vintage_year, f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT vintage_year, period_label FROM b),\nstock AS (\n  SELECT vintage_year, period_label, CAST(idx_ltv_x_bal / bal AS DOUBLE) AS wa_indexed_ltv\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY vintage_year, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.vintage_year, k.period_label, s.wa_indexed_ltv\nFROM keys k LEFT JOIN stock s USING (vintage_year, period_label)\nORDER BY k.vintage_year, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 5,
+    "rows_full": 7
+  },
+  {
+    "id": "S07",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "arrears_90p_cnt"
+      ],
+      "group_by": [
+        "ltv_bucket_indexed"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.ltv_bucket_indexed AS ltv_bucket_indexed, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01'\n  GROUP BY f.ltv_bucket_indexed, f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT ltv_bucket_indexed, period_label FROM b),\nstock AS (\n  SELECT ltv_bucket_indexed, period_label, CAST(a90_cnt / loan_count AS DOUBLE) AS arrears_90p_cnt\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ltv_bucket_indexed, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.ltv_bucket_indexed, k.period_label, s.arrears_90p_cnt\nFROM keys k LEFT JOIN stock s USING (ltv_bucket_indexed, period_label)\nORDER BY k.ltv_bucket_indexed, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 4,
+    "rows_full": 4
+  },
+  {
+    "id": "S08",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "hardship_share_bal"
+      ],
+      "group_by": [
+        "occupancy"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2024-07",
+        "end": "2024-12",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT l.occupancy AS occupancy, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2024-07-01' AND DATE '2024-12-01'\n  GROUP BY l.occupancy, f.period\n),\nb AS (SELECT *, strftime(period, '%Y-%m') AS period_label FROM parts),\nkeys AS (SELECT DISTINCT occupancy, period_label FROM b),\nstock AS (\n  SELECT occupancy, period_label, CAST(hard_bal / bal AS DOUBLE) AS hardship_share_bal\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY occupancy, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.occupancy, k.period_label, s.hardship_share_bal\nFROM keys k LEFT JOIN stock s USING (occupancy, period_label)\nORDER BY k.occupancy, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 12,
+    "rows_full": 12
+  },
+  {
+    "id": "S09",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "wa_rate"
+      ],
+      "group_by": [
+        "rate_type"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2023-06",
+        "end": "2023-06",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.rate_type AS rate_type, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2023-06-01' AND DATE '2023-06-01'\n  GROUP BY f.rate_type, f.period\n),\nb AS (SELECT *, '2023-06' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT rate_type, period_label FROM b),\nstock AS (\n  SELECT rate_type, period_label, CAST(rate_x_bal / bal AS DOUBLE) AS wa_rate\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY rate_type, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.rate_type, k.period_label, s.wa_rate\nFROM keys k LEFT JOIN stock s USING (rate_type, period_label)\nORDER BY k.rate_type, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 2,
+    "rows_full": 2
+  },
+  {
+    "id": "S10",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "arrears_90p_bal"
+      ],
+      "group_by": [
+        "deal_name"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2025-06",
+        "end": "2025-06",
+        "shape": "point"
+      },
+      "order": {
+        "metric": "arrears_90p_bal",
+        "direction": "desc",
+        "limit": 5
+      },
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT d.deal_name AS deal_name, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2025-06-01' AND DATE '2025-06-01'\n  GROUP BY d.deal_name, f.period\n),\nb AS (SELECT *, '2025-06' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT deal_name, period_label FROM b),\nstock AS (\n  SELECT deal_name, period_label, CAST(a90_bal / bal AS DOUBLE) AS arrears_90p_bal\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY deal_name, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.deal_name, k.period_label, s.arrears_90p_bal\nFROM keys k LEFT JOIN stock s USING (deal_name, period_label)\nORDER BY arrears_90p_bal DESC NULLS LAST, k.deal_name, k.period_label LIMIT 5",
+    "route_auto": "agg",
+    "rows_small": 5,
+    "rows_full": 5
+  },
+  {
+    "id": "S11",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "cpr",
+        "balance_total"
+      ],
+      "group_by": [],
+      "filters": {
+        "deal_id": [
+          "D004"
+        ]
+      },
+      "time": {
+        "grain": "month",
+        "start": "2025-01",
+        "end": "2025-12",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2025-01-01' AND DATE '2025-12-01' AND f.deal_id IN ('D004')\n  GROUP BY f.period\n),\nb AS (SELECT *, 'range' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT period_label FROM b),\nstock AS (\n  SELECT period_label, CAST(bal AS DOUBLE) AS balance_total\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n),\nflow AS (\n  SELECT period_label,\n    CASE WHEN COUNT(*) FILTER (WHERE smm_den > 0) = 0 THEN NULL\n         WHEN MAX(smm_num / smm_den) FILTER (WHERE smm_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - smm_num / smm_den)) FILTER (WHERE smm_den > 0)) END AS smm_p,\n    COUNT(*) FILTER (WHERE smm_den > 0) AS smm_n,\n    CASE WHEN COUNT(*) FILTER (WHERE mdr_den > 0) = 0 THEN NULL\n         WHEN MAX(mdr_num / mdr_den) FILTER (WHERE mdr_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - mdr_num / mdr_den)) FILTER (WHERE mdr_den > 0)) END AS mdr_p,\n    COUNT(*) FILTER (WHERE mdr_den > 0) AS mdr_n\n  FROM b GROUP BY period_label\n)\nSELECT k.period_label, s.balance_total, 1 - POWER(1 - w.smm_p, 12.0 / w.smm_n) AS cpr\nFROM keys k LEFT JOIN stock s USING (period_label) LEFT JOIN flow w USING (period_label)\nORDER BY k.period_label",
+    "route_auto": "agg",
+    "rows_small": 1,
+    "rows_full": 1
+  },
+  {
+    "id": "S12",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "smm_vol",
+        "cpr"
+      ],
+      "group_by": [
+        "issue_year"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "year",
+        "start": "2023-01",
+        "end": "2024-12",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT d.issue_year AS issue_year, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2023-01-01' AND DATE '2024-12-01'\n  GROUP BY d.issue_year, f.period\n),\nb AS (SELECT *, CAST(year(period) AS VARCHAR) AS period_label FROM parts),\nkeys AS (SELECT DISTINCT issue_year, period_label FROM b),\nflow AS (\n  SELECT issue_year, period_label,\n    CASE WHEN COUNT(*) FILTER (WHERE smm_den > 0) = 0 THEN NULL\n         WHEN MAX(smm_num / smm_den) FILTER (WHERE smm_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - smm_num / smm_den)) FILTER (WHERE smm_den > 0)) END AS smm_p,\n    COUNT(*) FILTER (WHERE smm_den > 0) AS smm_n,\n    CASE WHEN COUNT(*) FILTER (WHERE mdr_den > 0) = 0 THEN NULL\n         WHEN MAX(mdr_num / mdr_den) FILTER (WHERE mdr_den > 0) >= 1 THEN 1.0\n         ELSE 1 - EXP(SUM(LN(1 - mdr_num / mdr_den)) FILTER (WHERE mdr_den > 0)) END AS mdr_p,\n    COUNT(*) FILTER (WHERE mdr_den > 0) AS mdr_n\n  FROM b GROUP BY issue_year, period_label\n)\nSELECT k.issue_year, k.period_label, 1 - POWER(1 - w.smm_p, 1.0 / w.smm_n) AS smm_vol, 1 - POWER(1 - w.smm_p, 12.0 / w.smm_n) AS cpr\nFROM keys k LEFT JOIN flow w USING (issue_year, period_label)\nORDER BY k.issue_year, k.period_label",
+    "route_auto": "agg",
+    "rows_small": 10,
+    "rows_full": 10
+  },
+  {
+    "id": "S13",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "wa_orig_ltv",
+        "loan_count"
+      ],
+      "group_by": [
+        "lmi_flag"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT CASE WHEN l.lmi_flag THEN 'yes' ELSE 'no' END AS lmi_flag, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01'\n  GROUP BY CASE WHEN l.lmi_flag THEN 'yes' ELSE 'no' END, f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT lmi_flag, period_label FROM b),\nstock AS (\n  SELECT lmi_flag, period_label, CAST(orig_ltv_x_bal / bal AS DOUBLE) AS wa_orig_ltv, CAST(loan_count AS DOUBLE) AS loan_count\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY lmi_flag, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.lmi_flag, k.period_label, s.wa_orig_ltv, s.loan_count\nFROM keys k LEFT JOIN stock s USING (lmi_flag, period_label)\nORDER BY k.lmi_flag, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 2,
+    "rows_full": 2
+  },
+  {
+    "id": "S14",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "arrears_90p_bal"
+      ],
+      "group_by": [
+        "seasoning_bucket",
+        "io_flag"
+      ],
+      "filters": {},
+      "time": {
+        "grain": "month",
+        "start": "2026-09",
+        "end": "2026-09",
+        "shape": "point"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.seasoning_bucket AS seasoning_bucket, CASE WHEN f.io_flag THEN 'yes' ELSE 'no' END AS io_flag, f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2026-09-01' AND DATE '2026-09-01'\n  GROUP BY f.seasoning_bucket, CASE WHEN f.io_flag THEN 'yes' ELSE 'no' END, f.period\n),\nb AS (SELECT *, '2026-09' AS period_label FROM parts),\nkeys AS (SELECT DISTINCT seasoning_bucket, io_flag, period_label FROM b),\nstock AS (\n  SELECT seasoning_bucket, io_flag, period_label, CAST(a90_bal / bal AS DOUBLE) AS arrears_90p_bal\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY seasoning_bucket, io_flag, period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.seasoning_bucket, k.io_flag, k.period_label, s.arrears_90p_bal\nFROM keys k LEFT JOIN stock s USING (seasoning_bucket, io_flag, period_label)\nORDER BY k.seasoning_bucket, k.io_flag, k.period_label",
+    "route_auto": "fact",
+    "rows_small": 3,
+    "rows_full": 3
+  },
+  {
+    "id": "S15",
+    "spec": {
+      "intent": "answer",
+      "metrics": [
+        "balance_total",
+        "loan_count"
+      ],
+      "group_by": [],
+      "filters": {
+        "trustee_format": [
+          "A"
+        ],
+        "dpd_bucket": [
+          "30-59",
+          "60-89",
+          "90+"
+        ]
+      },
+      "time": {
+        "grain": "month",
+        "start": "2024-04",
+        "end": "2024-06",
+        "shape": "series"
+      },
+      "order": null,
+      "clarify": null,
+      "unsupported_reason": null
+    },
+    "hand_sql": "WITH parts AS (\n  SELECT f.period,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0) AS loan_count,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0), 0) AS bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket >= 2 AND NOT f.hardship_flag), 0) AS a30_bal,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag), 0) AS a90_bal,\n    COUNT(*) FILTER (WHERE f.closing_balance > 0 AND f.dpd_bucket = 4 AND NOT f.hardship_flag) AS a90_cnt,\n    COALESCE(SUM(f.closing_balance) FILTER (WHERE f.closing_balance > 0 AND f.hardship_flag), 0) AS hard_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * l.orig_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS orig_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.indexed_ltv) FILTER (WHERE f.closing_balance > 0), 0) AS idx_ltv_x_bal,\n    COALESCE(SUM(CAST(f.closing_balance AS DOUBLE) * f.interest_rate) FILTER (WHERE f.closing_balance > 0), 0) AS rate_x_bal,\n    COALESCE(SUM(f.curtailment) FILTER (WHERE f.opening_balance > 0), 0)\n      + COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'prepaid'), 0) AS smm_num,\n    COALESCE(SUM(f.opening_balance - f.scheduled_principal) FILTER (WHERE f.opening_balance > 0 AND (f.exit_reason IS NULL OR f.exit_reason = 'prepaid')), 0) AS smm_den,\n    COALESCE(SUM(f.exit_balance) FILTER (WHERE f.opening_balance > 0 AND f.exit_reason = 'defaulted'), 0) AS mdr_num,\n    COALESCE(SUM(f.opening_balance) FILTER (WHERE f.opening_balance > 0), 0) AS mdr_den\n  FROM fact_loan_month f\n  JOIN dim_loan l ON l.loan_id = f.loan_id\n  JOIN dim_deal d ON d.deal_id = f.deal_id\n  WHERE f.period BETWEEN DATE '2024-04-01' AND DATE '2024-06-01' AND d.trustee_format IN ('A') AND CASE f.dpd_bucket WHEN 0 THEN 'current' WHEN 1 THEN '1-29' WHEN 2 THEN '30-59' WHEN 3 THEN '60-89' ELSE '90+' END IN ('30-59', '60-89', '90+')\n  GROUP BY f.period\n),\nb AS (SELECT *, strftime(period, '%Y-%m') AS period_label FROM parts),\nkeys AS (SELECT DISTINCT period_label FROM b),\nstock AS (\n  SELECT period_label, CAST(bal AS DOUBLE) AS balance_total, CAST(loan_count AS DOUBLE) AS loan_count\n  FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY period_label ORDER BY period DESC) AS rn FROM b WHERE loan_count > 0)\n  WHERE rn = 1\n)\nSELECT k.period_label, s.balance_total, s.loan_count\nFROM keys k LEFT JOIN stock s USING (period_label)\nORDER BY k.period_label",
+    "route_auto": "fact",
+    "rows_small": 3,
+    "rows_full": 3
+  }
+]

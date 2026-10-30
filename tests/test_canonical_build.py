@@ -143,3 +143,21 @@ def test_full_pool_monthly_matches_truth(full_db):
     with open(ROOT / "outputs" / "pool_monthly_truth.csv", encoding="utf-8", newline="") as f:
         truth = pd.DataFrame(list(csv.DictReader(f)))
     _compare(canonical, truth)
+
+
+def test_dim_period(small_db):
+    """Instruction 03 D.4: 60 months, window_start to window_end, with 3 spot checks."""
+    con = duckdb.connect(str(small_db), read_only=True)
+    try:
+        cols = con.execute("SELECT column_name, data_type FROM information_schema.columns "
+                           "WHERE table_name = 'dim_period' ORDER BY ordinal_position").fetchall()
+        rows = con.execute("SELECT strftime(period, '%Y-%m-%d'), month_label, quarter_label, year_label "
+                           "FROM dim_period ORDER BY period").fetchall()
+    finally:
+        con.close()
+    assert cols == [("period", "DATE"), ("month_label", "VARCHAR"), ("quarter_label", "VARCHAR"),
+                    ("year_label", "VARCHAR")]
+    assert len(rows) == 60
+    assert rows[0] == ("2021-10-01", "2021-10", "2021-Q4", "2021")
+    assert ("2024-12-01", "2024-12", "2024-Q4", "2024") in rows
+    assert rows[-1] == ("2026-09-01", "2026-09", "2026-Q3", "2026")

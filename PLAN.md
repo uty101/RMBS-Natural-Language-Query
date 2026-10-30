@@ -214,12 +214,33 @@ Review evidence: both test outputs, verbatim.
 
 ## Section 3: semantic layer and compiler
 
+Instruction 03 parts B to D fix the query semantics (B), the 2 catalogue files (C) and the
+compiler's shape (D). Its 15 gold specs and 20 spec examples are committed as
+`tests/fixtures/compiler_gold.json` and `tests/fixtures/spec_examples.json`, byte for byte
+copies of the instruction's 2 JSON files, never edited.
+
+**Step 3.0: fixtures and `dim_period`.** Added by instruction 03 (E 3.0). Copies the 2
+JSON fixtures. `build_canonical` writes a new table `dim_period(period DATE, month_label,
+quarter_label, year_label VARCHAR)`, 1 row per month from window_start to window_end (60
+rows, for example `2025-04-01, 2025-04, 2025-Q2, 2025`), and
+`outputs/canonical_row_counts.csv` gains the row `dim_period, all, 60`. Both data scripts
+take `--outputs DIR`. It defaults to the repo's `outputs/` only for `--profile full`, or
+when `--raw` is the repo's `data/raw/`; otherwise to `<--out or --raw>/../outputs`, so a
+small run never overwrites the committed full-profile CSVs. Tests:
+`tests/test_canonical_build.py::test_dim_period` (60 rows; spot checks 2021-10, 2024-12,
+2026-09) and `tests/test_scripts.py::test_small_run_leaves_repo_outputs_alone` (both
+scripts on the small profile in a temp folder; SHA-256 of every file in `outputs/`
+unchanged). Every Section 2 test still passes.
+
 **Step 3.1: catalogue.** Files `semantic/metrics.yaml` (exactly the 12 metrics of 6.3),
 `semantic/dimensions.yaml` (exactly the 18 dimensions of 6.5, with the 5 deal level ones
 marked) and `rmbsq/semantic/catalog.py` (`load_catalog(metrics_yaml: Path, dims_yaml:
 Path) -> Catalog`, allowed values loaded from the canonical DB). Metric keys are `name,
 kind, numerator, denominator, display, definition`; dimension keys are `name, column,
-table, level, labels, definition` (O-30). Tests in `tests/test_catalog.py`:
+table, level, labels, definition` (O-30). Metric names, kinds, displays and
+definitions are instruction 03 C.1 verbatim; dimension rows are C.2.
+`Catalog.allowed_values(name)` returns the fixed labels where C.2 gives them, otherwise
+the sorted distinct values from the database. Tests in `tests/test_catalog.py`:
 `test_twelve_metrics`, `test_eighteen_dimensions`, `test_allowed_values_from_db` (on
 `small_db`). Review evidence: both YAML files in full; allowed values per categorical
 dimension.
@@ -242,28 +263,44 @@ When a point shape's start equals its end, period_label is that month (`2026-09`
 otherwise point shape uses `range` (O-16). n_months for flow compounding is the months
 with data for that group, and "last month with data" for stock metrics is per group
 (O-17). The `rate_type` and `io_flag` dimensions read the current status that month from
-`fact_loan_month` (O-18). Tests in `tests/test_compiler.py`:
-`test_fifteen_specs_match_hand_sql` (15 specs and hand SQL supplied in instruction 03,
-equal to 1e-9 on `small_db`) and `test_quarter_compounding_hand_example`. Review
+`fact_loan_month` (O-18). The query semantics are instruction 03 part B. The statement
+is 1 tree with the CTEs `parts`, `b`, `keys`, `stock`, `flow` and a final select (D.1);
+`stock` or `flow` is left out when no metric needs it. **Oracle-safe constructs (D.3):**
+conditional aggregates are `SUM(CASE WHEN … THEN x ELSE 0 END)`, never `FILTER`; period
+labels come from a join to `dim_period`, never date functions; flag and bucket labels are
+`CASE` expressions; math uses only `EXP`, `LN`, `POWER` and `ROW_NUMBER`; booleans are
+compared as columns (`NOT f.hardship_flag`, Oracle 23ai). Tests in
+`tests/test_compiler.py`: `test_fifteen_specs_match_hand_sql` (15 gold specs on
+`small_db`: same columns and row order, dimensions equal as strings, metrics within 1e-9
+after scaling by max(1, |value|), row count `rows_small`),
+`test_quarter_compounding_hand_example` (instruction 03 B.8, to 1e-10) and
+`test_full_fifteen_specs_match_hand_sql` (marked `full`, row count `rows_full`). Review
 evidence: per spec, the DuckDB SQL, the hand SQL and the max abs difference; the hand
 example's arithmetic line by line.
 
 **Step 3.4: routing.** In `compiler.py`: route `auto` picks `agg` when every group_by and
-filter dimension is deal level, else `fact`. Test
-`tests/test_routing.py::test_fact_and_agg_routes_equal` (every deal level test spec,
-results equal on both routes). Review evidence: per spec, the route `auto` chose and the
+filter dimension is deal level, else `fact`; that includes specs with neither (D.2). Route `agg` changes only the
+`parts` CTE, which reads `agg_deal_month` joined to `dim_deal`. Tests in
+`tests/test_routing.py`: `test_route_auto_choice` (auto route equals `route_auto` for all
+15 specs) and `test_fact_and_agg_routes_equal` (S01, S02, S05, S10, S11, S12, equal by the
+3.3 rule on `small_db`). Review evidence: per spec, the route `auto` chose and the
 max abs difference between routes.
 
 **Step 3.5: Oracle rendering.** In `compiler.py`: `sql_oracle` rendered from the same tree
-with `dialect="oracle"`. Test
-`tests/test_oracle_render.py::test_specs_render_to_oracle_without_warnings`, which fails
-on any `sqlglot` unsupported warning. Review evidence: the Oracle SQL for 3 test specs;
+with `dialect="oracle"` and `pretty=True`. Test
+`tests/test_oracle_render.py::test_specs_render_to_oracle` (instruction 03 E 3.5): for all
+15 specs, no `sqlglot` warning (logger captured at WARNING, `unsupported_level=
+ErrorLevel.RAISE`); none of `FILTER(`, `FILTER (`, `YEAR(`, `QUARTER(`, `STRFTIME`, `CLOB`,
+`LIMIT `, `::` in the text, case-insensitive; the text parses back with
+`sqlglot.parse_one(text, read="oracle")`. Review evidence: the Oracle SQL for 3 test specs;
 the captured warning list (expected empty).
 
 **Step 3.6: display formatting.** Implements `format_table(df, catalog) -> DataFrame` in
 `rmbsq/semantic/format.py`: percentages with 2 dp, balances as `A$412.3m`, counts as
-integers with thousands separators (5.2, 5.3). Test
-`tests/test_format_table.py::test_display_rules`. Review evidence: 1 raw frame and its
+integers with thousands separators (5.2, 5.3), years as plain integers, NULL as `n/a`,
+dimensions and period_label unchanged; every cell a string. Test
+`tests/test_format_table.py::test_display_rules`, including round-half-even for 0.000125
+(recorded as Python's format gives it). Review evidence: 1 raw frame and its
 formatted frame side by side.
 
 ## Section 4: LLM layer

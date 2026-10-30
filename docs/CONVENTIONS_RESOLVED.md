@@ -89,7 +89,7 @@ the O-number is kept next to each decision.
 |---|---|---|
 | S1 | `pool_monthly_truth.csv` has the columns of `pool_monthly.csv`. Test 2.5 compares truth and canonical on the small profile in a temp folder; a second, `full` test compares the committed full truth with the canonical layer built from the committed full raw data (O-13). | instr 01 B |
 | S2 | Test 2.3 uses a constructed frame with a known call month to prove the mechanics, and asserts on the small profile that recovered format B calls equal the true called exits, an equality where empty on both sides is allowed; a `full` test checks that all 7 called format B deals of the full profile are recovered with exact call months and loan counts (O-28 as amended). | instr 01 B, instr 01b B.3 |
-| S3 | The 5 rows of test 2.4 are the first loan_id of each originator, at the latest period where that loan has a row with closing_balance > 0, in the small profile (O-29). | instr 01 B |
+| S3 | The 5 rows of test 2.4 are the first loan_id of each originator among loans that have a row with closing_balance > 0, at the latest period where that loan has such a row, in the small profile (O-29, amended by O-36 (a)). | instr 01 B, instr 03 A |
 | S4 | `compile(spec, catalog, route="auto")` (O-15). | instr 01 B |
 | S5 | Catalogue YAML keys: metric `name, kind, numerator, denominator, display, definition`; dimension `name, column, table, level, labels, definition` (O-30). | instr 01 B |
 | S6 | Number guard: before extracting numbers, strip every catalogue dimension label, every YYYY-MM and YYYY-Qn token and every deal_name, longest match first, then run the 6.9 regex (O-19). | instr 01 B |
