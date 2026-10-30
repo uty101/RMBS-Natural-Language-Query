@@ -1,0 +1,22 @@
+{
+ "id": "msg_fixture_baseline_empty",
+ "type": "message",
+ "role": "assistant",
+ "model": "claude-sonnet-5-5",
+ "content": [
+  {
+   "type": "tool_use",
+   "id": "toolu_fixture_baseline_empty",
+   "name": "submit_sql",
+   "input": {
+    "sql": ""
+   }
+  }
+ ],
+ "stop_reason": "tool_use",
+ "stop_sequence": null,
+ "usage": {
+  "input_tokens": 2600,
+  "output_tokens": 15
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "id": "msg_fixture_baseline_sql",
+ "type": "message",
+ "role": "assistant",
+ "model": "claude-sonnet-5-5",
+ "content": [
+  {
+   "type": "tool_use",
+   "id": "toolu_fixture_baseline_sql",
+   "name": "submit_sql",
+   "input": {
+    "sql": "SELECT d.originator, 'latest' AS period_label, SUM(f.closing_balance) AS balance_total\nFROM fact_loan_month f JOIN dim_deal d ON d.deal_id = f.deal_id\nWHERE f.period = DATE '2026-09-01' AND f.closing_balance > 0\nGROUP BY d.originator ORDER BY d.originator"
+   }
+  }
+ ],
+ "stop_reason": "tool_use",
+ "stop_sequence": null,
+ "usage": {
+  "input_tokens": 2600,
+  "output_tokens": 90
+ }
+}
