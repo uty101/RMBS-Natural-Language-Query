@@ -1,0 +1,29 @@
+{
+ "id": "msg_fixture_spec_answer",
+ "type": "message",
+ "role": "assistant",
+ "model": "claude-sonnet-5-5",
+ "content": [
+  {
+   "type": "tool_use",
+   "id": "toolu_fixture_spec_answer",
+   "name": "submit_spec",
+   "input": {
+    "intent": "answer",
+    "metrics": [
+     "balance_total",
+     "loan_count"
+    ],
+    "group_by": [
+     "originator"
+    ]
+   }
+  }
+ ],
+ "stop_reason": "tool_use",
+ "stop_sequence": null,
+ "usage": {
+  "input_tokens": 3100,
+  "output_tokens": 60
+ }
+}
