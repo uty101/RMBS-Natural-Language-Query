@@ -18,6 +18,7 @@ import duckdb
 import pandas as pd
 import sqlglot
 from sqlglot import exp
+from sqlglot.errors import ErrorLevel
 
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.timeagg import FLOW, flow_cte, flow_value, stock_cte
@@ -177,8 +178,9 @@ def compile(spec, catalog, route: Route = "auto") -> CompiledQuery:  # noqa: A00
         raise ValueError("route agg needs every group_by and filter dimension to be deal level")
     tree = build_tree(spec, catalog, route)
     return CompiledQuery(
-        sql_duckdb=tree.sql(dialect="duckdb", pretty=True),
-        sql_oracle=tree.sql(dialect="oracle", pretty=True),
+        sql_duckdb=tree.sql(dialect="duckdb", pretty=True, unsupported_level=ErrorLevel.RAISE),
+        # step 3.5: the same tree for Oracle; anything sqlglot can't render raises
+        sql_oracle=tree.sql(dialect="oracle", pretty=True, unsupported_level=ErrorLevel.RAISE),
         route=route,
     )
 
