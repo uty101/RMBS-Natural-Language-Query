@@ -19,6 +19,9 @@ dependencies = [
     "pypdf",
 ]
 
+[project.scripts]
+rmbsq = "rmbsq.cli:main"
+
 [project.optional-dependencies]
 test = [
     "pytest",
