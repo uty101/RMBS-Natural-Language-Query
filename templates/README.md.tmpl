@@ -1,0 +1,92 @@
+# RMBS Natural Language Query
+
+Ask questions of loan-level RMBS data in plain English, and get numbers you can check. A language model turns each question into a small JSON query spec. A compiler turns the spec into SQL over governed metric definitions, so the model never does the arithmetic. Every answer comes with its spec, its Oracle SQL and the table it came from, and a guard rejects any narrated number that isn't in that table.
+
+All data in this repo is synthetic: {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months from 2021-10 to 2026-09, delivered in 2 trustee formats with the inconsistencies real trustee data has. The reasoning behind the design is in [docs/DESIGN_RESPONSE.md](docs/DESIGN_RESPONSE.md).
+
+## Results
+
+{{#eval}}
+**Governed system against plain text-to-SQL, same 40 questions.** The governed system got {{sys_total_k}} of {{sys_total_n}} ({{sys_total_pct}}, 95% interval {{sys_total_lo}} to {{sys_total_hi}}); plain text-to-SQL got {{base_total_k}} of {{base_total_n}} ({{base_total_pct}}, interval {{base_total_lo}} to {{base_total_hi}}). The plain model was given the same table definitions, the same written metric formulas and the exact output column names for each question. That favours it.
+
+{{eval_table}}
+
+![Accuracy by category](outputs/figures/eval_accuracy.png)
+{{/eval}}
+{{^eval}}
+**The live eval hasn't been recorded in this copy.** It compares the governed system with a model writing SQL directly, on 40 questions. It needs an Anthropic API key, which is never stored in the repo. With your own key, in PowerShell from the repo root:
+
+    $env:ANTHROPIC_API_KEY = "<your key>"
+    python scripts/run_eval.py --mode record
+    python scripts/build_writeup.py
+
+The first command records about 114 API calls into `data/llm_cache/`. The second regenerates this README, the design response, the figures and the PDFs from the results. After that, everything replays offline with no key.
+{{/eval}}
+
+**Cleaning, proved row for row.** The raw trustee files hold {{n_raw_rows}} rows, including {{n_resubmission_duplicates}} resubmitted duplicates. Format B codes its {{n_called_deals_b}} clean-up calls as ordinary repayments. The canonical table rebuilt from those files matches the simulated truth on all {{n_loan_months}} loan-months, with {{canonical_truth_mismatches}} mismatches.
+
+**Compiler, checked against hand-written SQL.** {{gold_matched}} of {{gold_total}} hand-written queries match the compiler, and the worst difference is {{gold_worst_diff}}. All {{oracle_ok}} render to Oracle without a construct Oracle can't run.
+
+**Scale.** Copied 36 times to {{rows_36x}} loan-months, all 34 answerable eval questions run in under {{x36_max_default_s}} seconds each with DuckDB's default threads; the slowest single-threaded run takes {{x36_max_single_s}} seconds.
+
+![Query time at 1x and 36x](outputs/figures/scale_benchmark.png)
+
+## How it works
+
+```mermaid
+flowchart LR
+  Q[Question] --> S[LLM writes a query spec]
+  S --> V{Valid?}
+  V -- no --> X[Decline]
+  S --> R[Resolve names and aliases]
+  R --> C{Clear?}
+  C -- no --> K[Ask a clarifying question]
+  C -- yes --> P[Compile to SQL over governed metrics]
+  P --> D[(Canonical loan-month tables)]
+  D --> T[Result table]
+  T --> N[LLM narrates from the table]
+  N --> G{Every number in the table?}
+  G -- yes --> A[Answer with spec, Oracle SQL and table]
+  G -- no --> F[Plain table summary instead]
+```
+
+## The data
+
+The synthetic pool follows the RBA cash rate from 2016 and suburb house price indices, with interest-only and fixed-rate expiries, lenders mortgage insurance and hardship arrangements. 90+ arrears by balance rise from {{arrears_90p_first_pct}} to a peak of {{arrears_90p_peak_pct}} in {{arrears_90p_peak_month}}, then ease to {{arrears_90p_latest_pct}}.
+
+![90+ arrears by vintage](outputs/figures/arrears_90p_by_vintage.png)
+
+The 2 trustee formats differ in arrears units (days against missed payments), hardship coding, how clean-up calls are reported, and money units. A few months are resubmitted on top of the originals. The canonical layer in `rmbsq/canonical/` undoes all of it.
+
+## Limitations
+
+- The data is synthetic. It is built to carry real traps, not to forecast real deals.
+- The eval is 40 questions, run once at temperature 0. Each category holds at most 10 questions, so intervals are wide, and repeat-run stability isn't measured.
+- Oracle SQL is rendered and checked for constructs Oracle can't run, but not executed against Oracle. The timings are DuckDB timings on 1 machine.
+
+## Running it
+
+```bash
+uv venv --python 3.12 .venv
+uv pip sync --python .venv requirements-lock.txt
+uv pip install --python .venv -e . --no-deps
+python scripts/build_canonical.py --raw data/raw --db data/canonical/rmbs.duckdb
+rmbsq ask "What is the 90+ arrears rate by balance for each state now?" --show-sql
+pytest -q && pytest -q -m full
+```
+
+`rmbsq ask` replays from the recorded cache. Add `--live` and set `ANTHROPIC_API_KEY` to ask new questions.
+
+## Repo map
+
+| path | what it holds |
+|---|---|
+| `rmbsq/synth/` | the synthetic data generator |
+| `rmbsq/canonical/` | trustee file ingestion and cleaning |
+| `rmbsq/semantic/` | metric catalogue, query spec and compiler |
+| `rmbsq/llm/` | prompts, cache, name resolution, narration and number guard |
+| `rmbsq/eval/` | eval runner, scoring and scale benchmark |
+| `eval/questions.yaml` | the 40 eval questions, with gold specs and SQL |
+| `outputs/` | every committed result, as CSV, plus figures |
+| `deliverable/` | the 2 PDFs |
+| `instructions/`, `review/` | how the repo was built, section by section, and the evidence for each |
