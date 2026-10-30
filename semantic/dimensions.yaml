@@ -1,0 +1,128 @@
+# The 18 dimensions (kickoff 6.5; instruction 03 C.2). labels lists the output values
+# where they are fixed, and is empty where values come from the database.
+
+- name: deal_id
+  column: deal_id
+  table: fact_loan_month
+  level: deal
+  labels: []
+  definition: "Deal identifier, for example D004."
+
+- name: deal_name
+  column: deal_name
+  table: dim_deal
+  level: deal
+  labels: []
+  definition: "Deal name: originator code, issue year and series number, for example HARB 2019-1."
+
+- name: originator
+  column: originator
+  table: dim_deal
+  level: deal
+  labels: []
+  definition: "Originator code: HARB, KOO, WAT, CST or RED."
+
+- name: trustee_format
+  column: trustee_format
+  table: dim_deal
+  level: deal
+  labels: ["A", "B"]
+  definition: "Which trustee report format the deal is delivered in."
+
+- name: issue_year
+  column: issue_year
+  table: dim_deal
+  level: deal
+  labels: []
+  definition: "Year the deal was issued."
+
+- name: vintage_year
+  column: vintage_year
+  table: dim_loan
+  level: loan
+  labels: []
+  definition: "Year the loan was originated."
+
+- name: city
+  column: city
+  table: dim_loan
+  level: loan
+  labels: []
+  definition: "Capital city region of the property."
+
+- name: state
+  column: state
+  table: dim_loan
+  level: loan
+  labels: ["NSW", "QLD", "SA", "VIC", "WA"]
+  definition: "State of the property."
+
+- name: area
+  column: area
+  table: dim_loan
+  level: loan
+  labels: []
+  definition: "Local area of the property, for example Blacktown."
+
+- name: suburb
+  column: suburb
+  table: dim_loan
+  level: loan
+  labels: []
+  definition: "Suburb of the property, for example Blacktown North."
+
+- name: rate_type
+  column: rate_type
+  table: fact_loan_month
+  level: loan
+  labels: ["fixed", "variable"]
+  definition: "Current rate type that month; a fixed loan becomes variable at its fixed rate expiry."
+
+- name: io_flag
+  column: io_flag
+  table: fact_loan_month
+  level: loan
+  labels: ["yes", "no"]
+  definition: "Whether the loan is interest only that month."
+
+- name: occupancy
+  column: occupancy
+  table: dim_loan
+  level: loan
+  labels: ["owner", "investor"]
+  definition: "Owner occupied or investment property."
+
+- name: lmi_flag
+  column: lmi_flag
+  table: dim_loan
+  level: loan
+  labels: ["yes", "no"]
+  definition: "Whether the loan has lenders mortgage insurance (LTV above 80% at origination)."
+
+- name: ltv_bucket_orig
+  column: ltv_bucket_orig
+  table: dim_loan
+  level: loan
+  labels: ["<=60", "60-70", "70-80", "80-90", ">90"]
+  definition: "Origination LTV band, in percent."
+
+- name: ltv_bucket_indexed
+  column: ltv_bucket_indexed
+  table: fact_loan_month
+  level: loan
+  labels: ["<=60", "60-70", "70-80", "80-90", ">90"]
+  definition: "Current indexed LTV band, in percent."
+
+- name: seasoning_bucket
+  column: seasoning_bucket
+  table: fact_loan_month
+  level: loan
+  labels: ["0-12", "13-24", "25-36", "37-60", ">60"]
+  definition: "Months since origination."
+
+- name: dpd_bucket
+  column: dpd_bucket
+  table: fact_loan_month
+  level: loan
+  labels: ["current", "1-29", "30-59", "60-89", "90+"]
+  definition: "Days past due band. Loans in hardship are current."

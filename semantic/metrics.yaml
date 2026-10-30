@@ -1,0 +1,87 @@
+# The 12 metrics (kickoff 6.3; instruction 03 C.1). numerator and denominator name the
+# monthly parts of instruction 03 B.2; they are empty for the flow metrics, which follow
+# the compound rule of B.6.
+
+- name: loan_count
+  kind: stock
+  numerator: "loan_count"
+  denominator: ""
+  display: count
+  definition: "Number of loans with a positive balance at month end."
+
+- name: balance_total
+  kind: stock
+  numerator: "bal"
+  denominator: ""
+  display: aud_m
+  definition: "Total outstanding balance in AUD at month end."
+
+- name: arrears_30p_bal
+  kind: stock
+  numerator: "a30_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Share of outstanding balance that is 30 or more days past due, excluding loans in hardship, weighted by balance."
+
+- name: arrears_90p_bal
+  kind: stock
+  numerator: "a90_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Share of outstanding balance that is 90 or more days past due, excluding loans in hardship, weighted by balance."
+
+- name: arrears_90p_cnt
+  kind: stock
+  numerator: "a90_cnt"
+  denominator: "loan_count"
+  display: pct
+  definition: "Share of loans by count that are 90 or more days past due, excluding loans in hardship."
+
+- name: hardship_share_bal
+  kind: stock
+  numerator: "hard_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Share of outstanding balance on a hardship arrangement."
+
+- name: wa_orig_ltv
+  kind: stock
+  numerator: "orig_ltv_x_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Balance-weighted average loan-to-value ratio at origination."
+
+- name: wa_indexed_ltv
+  kind: stock
+  numerator: "idx_ltv_x_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Balance-weighted average current loan-to-value ratio, with property values indexed to suburb house prices."
+
+- name: wa_rate
+  kind: stock
+  numerator: "rate_x_bal"
+  denominator: "bal"
+  display: pct
+  definition: "Balance-weighted average interest rate."
+
+- name: smm_vol
+  kind: flow
+  numerator: ""
+  denominator: ""
+  display: pct
+  definition: "Monthly voluntary prepayment rate: full prepayments plus partial curtailments over scheduled balance. Excludes repurchases, defaults and clean-up calls."
+
+- name: cpr
+  kind: flow
+  numerator: ""
+  denominator: ""
+  display: pct
+  definition: "Conditional prepayment rate: smm_vol annualised. Excludes repurchases, defaults and clean-up calls."
+
+- name: cdr
+  kind: flow
+  numerator: ""
+  denominator: ""
+  display: pct
+  definition: "Conditional default rate: defaulted balance over opening balance each month, annualised."
