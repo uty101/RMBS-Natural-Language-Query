@@ -1,0 +1,19 @@
+# virtual environments
+.venv/
+venv/
+
+# rebuilt by scripts/build_canonical.py and the benchmark, never committed
+data/canonical/
+
+# tool caches (data/llm_cache/ is committed and is NOT ignored)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# local secrets
+.env

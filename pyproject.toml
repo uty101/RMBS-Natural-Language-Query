@@ -1,0 +1,41 @@
+[project]
+name = "rmbsq"
+version = "0.0.0"
+description = "Governed natural language queries over synthetic loan-level RMBS data"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "duckdb",
+    "pandas",
+    "numpy",
+    "pyarrow",
+    "pydantic",
+    "sqlglot",
+    "rapidfuzz",
+    "anthropic",
+    "pyyaml",
+    "matplotlib",
+    "numpy-financial",
+    "reportlab",
+    "pypdf",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-socket",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rmbsq*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--disable-socket"
+markers = [
+    "calibration: reads the full generated profile (kickoff Section 9, step 1.6)",
+]
