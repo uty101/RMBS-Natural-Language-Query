@@ -1,0 +1,29 @@
+claim_id,value,display,source_file,source_rule
+n_deals,50,50,outputs/data_summary.csv,stat n_deals
+n_loans,21945,"21,945",outputs/data_summary.csv,stat n_loans
+n_loan_months,773336,"773,336",outputs/data_summary.csv,stat n_loan_months
+n_raw_rows,774057,"774,057",outputs/data_summary.csv,stat n_raw_rows
+n_resubmission_duplicates,721,721,outputs/data_summary.csv,stat n_resubmission_duplicates
+n_called_deals,17,17,outputs/data_summary.csv,stat n_called_deals
+n_called_deals_b,7,7,outputs/data_summary.csv,stat n_called_deals_b
+canonical_truth_mismatches,0,0,outputs/data_summary.csv,stat canonical_truth_mismatches
+arrears_90p_first_pct,0.0018019773,0.18%,outputs/data_summary.csv,stat arrears_90p_first
+arrears_90p_peak_pct,0.0153861877,1.54%,outputs/data_summary.csv,stat arrears_90p_peak
+arrears_90p_latest_pct,0.0047055595,0.47%,outputs/data_summary.csv,stat arrears_90p_latest
+arrears_90p_peak_month,2024-08,2024-08,outputs/data_summary.csv,stat arrears_90p_peak_month
+gold_total,49,49,outputs/compiler_check.csv,row count
+gold_matched,49,49,outputs/compiler_check.csv,rows with max_scaled_diff <= 1e-9
+gold_worst_diff,1.61e-15,1.6e-15,outputs/compiler_check.csv,max of max_scaled_diff
+oracle_ok,49,49,outputs/compiler_check.csv,rows with oracle_ok true
+rows_36x,27840096,"27,840,096",outputs/scale_benchmark.csv,db_rows where db = 36x
+x36_max_default_s,0.745008,0.75,outputs/scale_benchmark.csv,"max median_s where db = 36x and threads = 0, rounded up to 2 dp"
+x36_max_single_s,3.3387419001,3.34,outputs/scale_benchmark.csv,max median_s where db = 36x and threads = 1
+trap_call_deal,CST 2019-1,CST 2019-1,outputs/trap_effects.csv,the Q29 deal_name filter
+trap_call_gold_pct,0.2155508154,21.6%,outputs/trap_effects.csv,Q29 gold
+trap_call_naive_pct,1.0,100.0%,outputs/trap_effects.csv,Q29 naive
+trap_exit_extra_loans,597,597,outputs/trap_effects.csv,Q32 naive - gold
+trap_exit_month,November 2025,November 2025,outputs/trap_effects.csv,the Q32 month
+trap_weight_gold_pct,0.5196431995,51.96%,outputs/trap_effects.csv,Q33 gold
+trap_weight_naive_pct,0.5091750448,50.92%,outputs/trap_effects.csv,Q33 naive
+trap_compound_cpr_pct,0.1806444857,18.1%,outputs/trap_effects.csv,Q2_2025 gold
+trap_compound_gap,1.2146699999993071e-05,1.2e-05,outputs/trap_effects.csv,abs(Q2_2025 gold - naive)
