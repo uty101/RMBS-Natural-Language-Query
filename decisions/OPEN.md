@@ -1,37 +1,31 @@
 # Open decisions
 
-Raised in session 5 (`instructions/05_section_5.md`). Evidence is in
-`review/section_5.md`. O-38 and O-39 were both confirmed as (a) by instruction 05 A.
+Raised in session 6 (`instructions/06_section_6.md`). Evidence is in
+`review/section_6.md`. O-40, O-41 and O-42 were all confirmed as (a) by instruction 06 A.
 
-## O-40. Step 5.7: S01 and S12 carry no balance_total or loan_count
+## O-43. Step 6.6: `PLAN.md` Section 7 and its header predate instruction 06
 
-F 5.7 says that for S01 and S12, ratio metrics on the tiled database equal the 1x
-values, and balance_total and loan_count are 3 ×. S01's only metric is
-`arrears_90p_bal`; S12's are `smm_vol` and `cpr`. A spec holds at most 3 metrics, so S12
-can't take both totals.
+Step 6.6 updates `PLAN.md` Section 6 only. The header (module homes) and Section 7 still
+name things that instruction 06 built differently:
 
-- (a) Run each spec as written for the ratio check, then the same spec (same group_by,
-  filters and time) with metrics `[balance_total, loan_count]` for the 3 × check, on
-  routes auto and fact. **This is what is built**, in
-  `tests/test_benchmark.py::test_tiled_specs_match_1x`.
-- (b) Check the totals only where they fit: S01 with `balance_total` and `loan_count`
-  added (3 metrics), and S12 with one total replacing `smm_vol`.
+| | `PLAN.md` says | instruction 06 built |
+|---|---|---|
+| claims | `load_claims(path)` | `build_claims(eval_recorded)` |
+| claims columns | `source_row_filter` | `display` and `source_rule` |
+| render | `render_markdown(template, claims)` | `render(template_text, claims, blocks, eval_recorded)` |
+| claims test | `tests/test_claims.py::test_claims_recompute` | `tests/test_claims.py::test_claims_pending` |
 
-## O-41. Step 5.7: what `db_rows` counts
+Also, the pending README, written by chat Claude, says `build_writeup.py` regenerates
+"the PDFs", but the PDFs are built in Section 7.
 
-E.2 lists `db_rows` in `outputs/scale_benchmark.csv` without saying which rows.
+- (a) Leave Section 7 and the header for instruction 07 to replace, and add the PDF build
+  to `build_writeup.py` in Section 7. **This is what is done.**
+- (b) Update Section 7 and the header now, to the names instruction 06 built.
 
-- (a) The row count of `fact_loan_month`, the table the fact route scans: 773,336 on 1x
-  and 27,840,096 on 36x. **This is what is built.**
-- (b) The total row count over all 7 canonical tables.
+## O-44. Step 6.2: the `pp1` display string
 
-## O-42. Step 5.3: the system's intent when its compile or execute fails
+Instruction 06 D lists the format `pp1` as "percentage points with 1 dp", but no claim
+uses it, and its exact string (unit, spacing) isn't given.
 
-D.2 gives the baseline's error intent (`error`) but not the system's. `answer` raises
-on a compile or execute failure, after the spec call, and the spec is not returned.
-
-- (a) Record intent `error` with the exception text in `error`, and score the item
-  wrong. A cache miss, a missing key and an API error still stop the run. **This is what
-  is built.**
-- (b) Record the spec's own intent (`answer`), which needs `answer` to return the spec
-  alongside the exception.
+- (a) Leave it unimplemented until a claim needs it. **This is what is done.**
+- (b) Implement it now as the value × 100 with 1 dp, then " pp", for example `3.2 pp`.
