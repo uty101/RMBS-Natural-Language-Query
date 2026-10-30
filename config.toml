@@ -1,0 +1,147 @@
+[project]
+seed = 20261029
+seed_aux = 20261030
+
+[calendar]
+sim_start = "2016-01"
+window_start = "2021-10"
+window_end = "2026-09"
+latest = "2026-09"
+
+[deals]
+n_deals = 50
+loans_per_deal = 500
+first_issue = "2019-01"
+issue_span_months = 60
+seasoning_min = 6
+seasoning_max = 36
+call_threshold = 0.10
+call_detect_share = 0.95
+
+[profiles.full]
+n_deals = 50
+loans_per_deal = 500
+
+[profiles.small]
+n_deals = 10
+loans_per_deal = 40
+
+[loans]
+balance_median = 520000
+balance_sigma = 0.45
+balance_min = 100000
+balance_max = 2500000
+ltv_floor = 0.35
+ltv_scale = 0.6
+ltv_beta_a = 4.0
+ltv_beta_b = 2.2
+ltv_cap = 0.95
+lmi_ltv = 0.80
+p_investor = 0.30
+p_io_investor = 0.40
+p_io_owner = 0.15
+io_term = 60
+p_fixed_pre2020 = 0.15
+p_fixed_2020_2022 = 0.40
+p_fixed_post2022 = 0.10
+fixed_terms = [24, 36]
+margin_mean = 0.026
+margin_sd = 0.004
+margin_min = 0.018
+margin_max = 0.038
+margin_investor = 0.003
+margin_io = 0.004
+fixed_spread_mean = 0.019
+fixed_spread_sd = 0.003
+fixed_rate_min = 0.015
+fixed_rate_max = 0.06
+term = 360
+
+[loans.city_mult]
+Sydney = 1.25
+Melbourne = 1.05
+Brisbane = 0.95
+Perth = 0.85
+Adelaide = 0.85
+
+[hpi]
+noise_phi = 0.8
+noise_sd = 0.004
+base = 100.0
+
+[behaviour]
+p_hardship = 0.002
+hardship_min = 3
+hardship_max = 6
+a0 = -5.52
+a_shock = 3.0
+a_ltv = 4.0
+ltv_knot = 0.8
+a_investor = 0.3
+a_io_recent = 0.5
+io_recent_months = 12
+p_cure = [0.55, 0.30, 0.15]
+p_roll = [0.25, 0.40, 0.55]
+roll_shock = 1.5
+p_cure_90 = 0.05
+default_after_90_months = 6
+smm_start = 0.004
+smm_flat = 0.015
+smm_ramp_months = 30
+fixed_cliff_mult = 3.0
+fixed_cliff_months = 3
+refi_spread = 0.022
+refi_slope = 8.0
+damp_ltv = 0.9
+damp_mult = 0.5
+smm_cap = 0.25
+curtailment = 0.001
+p_repurchase = 0.0005
+sale_haircut = 0.80
+
+[calibration]
+rows_min = 700000
+rows_max = 1600000
+arrears_90p_min = 0.002
+arrears_90p_max = 0.025
+arrears_peak_from = "2023-06"
+arrears_peak_to = "2025-06"
+cpr12_min = 0.08
+cpr12_max = 0.35
+fixed_cliff_ratio_min = 2.0
+min_deals_called = 3
+
+[resubmissions]
+deal_months = [["D004", "2023-06"], ["D017", "2024-02"], ["D033", "2025-11"]]
+inflate = 1.01
+
+[resolve]
+accept = 90
+clarify = 75
+top_k = 3
+
+[llm]
+model = "claude-sonnet-5-5"
+temperature = 0
+max_tokens = 1024
+narration_max_words = 120
+narration_max_rows = 50
+baseline_timeout_s = 30
+
+[eval]
+tol_ratio_abs = 1e-6
+tol_balance_rel = 1e-6
+gold_tol_abs = 1e-9
+wilson_z = 1.96
+
+[benchmark]
+copies = 36
+repeats = 5
+warmup = 1
+thread_settings = [1, 0]   # 0 means DuckDB default
+
+[deliverable]
+page_size = "A4"
+design_max_pages = 4
+summary_max_pages = 1
+font = "Helvetica"

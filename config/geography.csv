@@ -1,0 +1,21 @@
+city,state,weight,area,beta
+Sydney,NSW,0.32,Blacktown,1.2
+Sydney,NSW,0.32,Parramatta,1.1
+Sydney,NSW,0.32,Penrith,1.3
+Sydney,NSW,0.32,Sutherland,0.9
+Melbourne,VIC,0.28,Casey,1.2
+Melbourne,VIC,0.28,Wyndham,1.3
+Melbourne,VIC,0.28,Whittlesea,1.1
+Melbourne,VIC,0.28,Boroondara,0.8
+Brisbane,QLD,0.20,Ipswich,1.2
+Brisbane,QLD,0.20,Logan,1.3
+Brisbane,QLD,0.20,Moreton Bay,1.0
+Brisbane,QLD,0.20,Brisbane Inner,0.9
+Perth,WA,0.12,Wanneroo,1.1
+Perth,WA,0.12,Joondalup,0.9
+Perth,WA,0.12,Rockingham,1.2
+Perth,WA,0.12,Stirling,1.0
+Adelaide,SA,0.08,Salisbury,1.1
+Adelaide,SA,0.08,Onkaparinga,1.0
+Adelaide,SA,0.08,Playford,1.3
+Adelaide,SA,0.08,Charles Sturt,0.9
