@@ -99,3 +99,16 @@ the O-number is kept next to each decision.
 | S10 | CI reads the committed `data/raw/` (O-24). Steps without a named test are checked by review evidence only; 6.5's evidence is the link to the green Actions run (O-25). | instr 01 B |
 | S11 | `outputs/arrears_90p_by_vintage.csv` and `outputs/cpr_by_city.csv` are built through `compile` from governed specs (O-32). | instr 01 B |
 | S12 | The 7.5 neutrality grep excludes `instructions/` and `.github/`; instruction 07 keeps workflow keywords out of its word list (O-2). | instr 01 B |
+
+## LLM layer (instruction 04)
+
+"instr 04" is `instructions/04_section_4.md`. N4 refines S6: where they differ, the F.2
+order applies.
+
+| # | Convention | Source |
+|---|---|---|
+| N1 | Every read connection is `rmbsq/db.py::connect_readonly(path)`: `duckdb.connect(path, read_only=True, config={"enable_external_access": False, "lock_configuration": True, "threads": 1})`. It blocks `COPY ... TO`, `read_csv` of local files, `INSTALL` and any `SET`; `SELECT` works. DuckDB refuses a second connection to the same file in 1 process with a different configuration, so no read path opens another kind. `build_canonical` keeps its own write connection. `threads: 1` keeps DOUBLE sums deterministic. | instr 04 B |
+| N2 | The LLM cache key is the SHA-256 hex of `json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` encoded in UTF-8, where `request = {model, max_tokens, temperature, system, messages, tools, tool_choice}` with model, max_tokens and temperature from `[llm]`. A narration request has `tools = []` and `tool_choice = null` in the key; in record mode neither is sent to the API. | instr 04 C.1, C.2 |
+| N3 | Cache files `data/llm_cache/<key>.json` hold `{key, request, response, latency_s}`, written with sorted keys, indent 1, `ensure_ascii=False` and a trailing LF, with no timestamp. | instr 04 C.3 |
+| N4 | Number guard order: strip every `\d{4}-\d{2}` and `\d{4}-Q[1-4]` token, then every catalogue deal_name, then every fixed dimension label longest first, the label only where no letter, digit or `.` touches it, each replaced by a space. Extract with `-?\d[\d,]*\.?\d*(%|m\b)?`; the token is the number without commas or a trailing `.`, plus its unit. Ignore tokens whose number is a number of the question (units ignored) and bare whole years 2016 to 2026. Allowed tokens come from the same extraction over every display cell. Return the rest in text order, without duplicates. | instr 04 F.2 |
+| N5 | Metric columns follow strict spec order, stock and flow alike (O-37 (b)). | instr 04 A |

@@ -305,66 +305,96 @@ formatted frame side by side.
 
 ## Section 4: LLM layer
 
-**Step 4.1: cached client.** File `rmbsq/llm/client.py`, `LLMClient(cfg, mode="replay")`
-with `.call(system, messages, tools, tool_choice) -> dict`. The cache key is the SHA-256
-of the JSON of (model, system, messages, tools, tool_choice, temperature).
-`data/llm_cache/<key>.json` stores the request and response. `replay` raises
-`CacheMiss` on a miss; `record` is the only network path. Tests in
-`tests/test_llm_client.py`: `test_cache_key_stable`, `test_replay_hit`,
-`test_replay_miss_raises_cachemiss`, `test_sockets_disabled_in_replay`. Fixtures are
-hand-written JSON in `tests/fixtures/llm_cache/`. Review evidence: 1 fixture request,
-its key, and the fixture file listing.
+Instruction 04 fixes the client and cache (C), the spec call (D), entity resolution (E),
+narration and the number guard (F), the baseline (G) and the pipeline (H). Its 3 prompts
+are committed as `prompts/spec_system.md`, `prompts/narrate_system.md` and
+`prompts/baseline_system.md`, and its guard cases as `tests/fixtures/guard_cases.json`,
+byte for byte copies, never edited. No live API call is made in this section: every test
+runs in replay mode from hand-written fixture responses in
+`tests/fixtures/llm_responses/<name>.json`, which the tests key with the client's own key
+function and write into a temp cache dir. No test reads `data/llm_cache/`.
 
-**Step 4.2: spec prompt and agent.** Files `prompts/spec_system.md` (rendered with the
-metric and dimension catalogues, including the clarify and unsupported rules of 6.8) and
-`rmbsq/llm/spec_agent.py` (`question_to_spec(question, client, catalog) -> QuerySpec`, 1
-tool `submit_spec` with input schema `QuerySpec.model_json_schema()`, `tool_choice`
-forced). Tests in `tests/test_spec_agent.py`: `test_prompt_contains_catalog_names` and
-`test_fixture_responses_parse`. Review evidence: the rendered prompt in full; each
-fixture response and its parsed spec.
+**Step 4.0: fixtures, prompts, locked connection.** Copies the files above and
+`instructions/04_compiler_gold.json` over `tests/fixtures/compiler_gold.json`. Metric
+columns follow strict spec order (O-37 (b)). New `rmbsq/db.py::connect_readonly(path) ->
+DuckDBPyConnection`: `read_only=True` with `enable_external_access: False`,
+`lock_configuration: True` and `threads: 1`. Every read connection uses it (catalogue,
+`scripts/build_canonical.py`, the pipeline, the baseline and the tests);
+`build_canonical` keeps its write connection. Tests:
+`tests/test_compiler.py::test_fifteen_specs_match_hand_sql` with the new fixture, and
+`tests/test_db.py::test_readonly_blocks` (CREATE, `COPY ... TO`, `read_csv` and `SET
+threads=4` raise; `SELECT` works; no file is created).
 
-**Step 4.3: entity resolution.** File `rmbsq/llm/resolve.py`, `resolve_entities(spec,
-catalog, aliases) -> QuerySpec`. An exact match or an alias is kept.
-`rapidfuzz.fuzz.token_set_ratio` then decides: unique best ≥ `accept` replaces; best in
-[`clarify`, `accept`) or a tie ≥ `clarify` gives clarify with the top `top_k`;
-below `clarify` gives unsupported with reason `unknown <dimension> value '<v>'`. Deal
-aliases take the 3 forms of 6.8. Decisions (O-20): exact matching is case-insensitive;
-fuzzy matching applies to the text dimensions only (deal_name, originator,
-trustee_format, city, state, area, suburb, rate_type, occupancy); numeric and flag
-dimensions match exactly or go to `unsupported`; an alias resolves to its deal_name, and
-a deal_id filter value that is not a deal_id but matches a deal_name or an alias has its
-filter key rewritten to deal_name. Tests in `tests/test_resolve.py`: `test_deal_aliases`,
-`test_score_bands`, `test_tie_handling`. Review evidence: the alias table for 3 deals;
-each band case with its score and outcome.
+**Step 4.1: cached client.** `rmbsq/llm/client.py`: `LLMClient(cfg, mode="replay",
+cache_dir=Path("data/llm_cache"))` with `.build_request(...)` and `.call(system,
+messages, tools, tool_choice) -> dict`. The request is `{model, max_tokens, temperature,
+system, messages, tools, tool_choice}`; its key `request_key(request)` is the SHA-256 hex
+of `json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` in
+UTF-8. The cache file `<key>.json` is `{key, request, response, latency_s}` written with
+sorted keys, indent 1 and a trailing LF, with no timestamp. `replay`: a miss raises
+`CacheMiss(key)`. `record`: a hit never calls the API; a miss raises `MissingApiKey`
+without `ANTHROPIC_API_KEY`, creates the SDK client on first use, and retries HTTP 429,
+529 and 5xx 3 times after 2, 4 and 8 s. `calls` logs `{key, hit, latency_s,
+input_tokens, output_tokens}`. Tests in `tests/test_llm_client.py`: `test_key_stable`,
+`test_replay_hit`, `test_replay_miss_raises`, `test_record_hit_does_not_call_api`,
+`test_missing_key_raises`, `test_cache_file_format`.
 
-**Step 4.4: narration and number guard.** Files `prompts/narrate_system.md`,
-`rmbsq/llm/narrate.py` (`narrate(question, spec, table, client) -> tuple[str, bool]` and
-`template_answer(spec, table) -> str`; at most `narration_max_rows` rows in, at most
-`narration_max_words` words out) and `rmbsq/llm/guard.py` (`number_guard(text, question,
-table) -> list[str]`, the 6.9 rules; a trip replaces the text with the template answer
-and logs the offending number). Before extracting numbers, the guard strips every
-dimension label in the catalogue (`30-59`, `60-70`, `<=60`, `>90`, `0-12`, `>60` and the
-rest), every YYYY-MM and YYYY-Qn token and every deal_name, longest match first, then runs
-the 6.9 regex on what is left (O-19). Test `tests/test_guard.py::test_guard_cases`, with
-the cases supplied in instruction 04, including a passing answer and 1 hallucinated
-figure. Review evidence: each guard case with its text, its extracted numbers and the
-verdict.
+**Step 4.2: spec agent.** `rmbsq/llm/spec_agent.py`: `render_spec_prompt(catalog, cfg)`
+fills `n_deals` (rows of `dim_deal`), the window, `latest`, the metric and dimension
+tables in YAML order and 1 allowed-values line per dimension (deal_name adds the alias
+note); an unfilled placeholder raises. Tool `submit_spec` with
+`QuerySpec.model_json_schema()` inlined (no `$ref`, `$defs` or `title`), forced.
+`question_to_spec(question, client, catalog) -> tuple[QuerySpec, bool]`: a missing block
+or a validation error gives `unsupported` with `invalid spec from model: <first error, at
+most 200 chars>` and False. Tests in `tests/test_spec_agent.py`:
+`test_prompt_has_every_name`, `test_tool_schema_inlined`, `test_parse_fixture_answer`,
+`test_parse_fixture_clarify`, `test_parse_fixture_unsupported`, `test_parse_invalid_spec`,
+`test_parse_missing_tool_block`.
 
-**Step 4.5: baseline.** Files `prompts/baseline_system.md` (DDL with a comment on every
-column, the 6.3 and 6.4 definitions in prose, and the column-naming instruction) and
-`rmbsq/llm/baseline.py` (`baseline_sql(question, output_columns, client) -> str`, tool
-`submit_sql`; the SQL runs on a read-only DuckDB connection with a
-`baseline_timeout_s` timeout). Tests in `tests/test_baseline.py`:
-`test_read_only_rejects_writes` and `test_timeout_enforced`; the timeout test passes a
-modified copy of `Config` with a shorter `baseline_timeout_s` (O-26). Review evidence: the
-write attempt and its error; the timed-out query with elapsed time.
+**Step 4.3: entity resolution.** `rmbsq/llm/resolve.py`: `deal_aliases(catalog)` (alias
+-> deal_name; `Harbour 19-1`, `HARB 19-1`, `HARB19-1` for HARB 2019-1) and
+`resolve_entities(spec, catalog, aliases) -> QuerySpec` for answer specs: exact
+case-insensitive, then deal aliases (a deal_id value that is a deal_name or alias moves to
+deal_name), then flags (`yes, no, true, false, y, n`), years and dpd_bucket, then
+`token_set_ratio` on the text dimensions only (O-20) with `resolve.accept`,
+`resolve.clarify` and `resolve.top_k`. The first clarify or unsupported value decides.
+Tests in `tests/test_resolve.py`: `test_exact_case_insensitive`, `test_aliases`,
+`test_deal_id_to_deal_name`, `test_fuzzy_accept`, `test_fuzzy_clarify`,
+`test_fuzzy_tie_clarifies`, `test_unknown_unsupported`, `test_flags_and_years`,
+`test_first_failure_decides`, `test_non_answer_unchanged`.
 
-**Step 4.6: CLI.** File `rmbsq/cli.py`: `rmbsq ask "<question>" [--live] [--show-sql]`,
-built on `answer(question, client, con, catalog) -> Answer` (spec, sql, table, text) in
-`rmbsq/llm/answer.py`. The console entry point is `[project.scripts] rmbsq =
-"rmbsq.cli:main"`, installed with `uv pip install -e . --no-deps` (O-4). Test
-`tests/test_cli.py::test_replay_end_to_end` (1 cached question, replay). Review evidence:
-the CLI output for that question, verbatim. No live calls in this section.
+**Step 4.4: narration and number guard.** `rmbsq/llm/narrate.py`: `narrate(question,
+spec, display_table, client, cfg, catalog) -> tuple[str, bool, list[str]]` (no tools; at
+most `narration_max_rows` rows with a `truncated` flag; a trip returns the template) and
+`template_answer(spec, display_table)`. `rmbsq/llm/guard.py`: `number_guard(text,
+question, display_table, catalog) -> list[str]`, the F.2 order: strip periods, deal names
+and fixed labels (longest first, not touching a letter, digit or `.`), extract with
+`-?\d[\d,]*\.?\d*(%|m\b)?`, ignore question numbers and bare years 2016 to 2026, allow the
+numbers of every display cell. Tests in `tests/test_guard.py`: `test_guard_cases` (13
+cases), `test_narrate_passes`, `test_narrate_trips_to_template`, `test_template_formats`,
+`test_truncation_flag`.
+
+**Step 4.5: baseline.** `rmbsq/llm/baseline.py`: `baseline_sql(question, output_columns,
+client, cfg) -> str` (tool `submit_sql`, forced; "" when the block is missing) and
+`run_baseline_sql(sql, con, cfg) -> pd.DataFrame | None` (None for "", a
+`threading.Timer(baseline_timeout_s, con.interrupt)`, `BaselineError` on any database
+error or interrupt). Tests in `tests/test_baseline.py`: `test_baseline_parse`,
+`test_baseline_timeout` (1 s through a config copy, O-26), `test_baseline_cannot_write`,
+`test_baseline_runs_select`.
+
+**Step 4.6: pipeline and CLI.** `rmbsq/llm/answer.py::answer(question, client, con,
+catalog, cfg) -> Answer` (question, spec_raw, spec_valid, spec, route, sql_duckdb,
+sql_oracle, table, display, text, guard_tripped, offending, calls). `rmbsq/cli.py`:
+`rmbsq ask "<question>" [--live] [--show-sql] [--db PATH]`, replay by default, default db
+`data/canonical/rmbs.duckdb`; a replay cache miss prints `not in the cache; run with
+--live` and exits 2. The console entry point is `[project.scripts] rmbsq =
+"rmbsq.cli:main"`, installed with `uv pip install -e . --no-deps` (O-4). Tests in
+`tests/test_answer.py`: `test_answer_end_to_end_replay` (S02's spec and a narration;
+the table equals the S02 gold), `test_answer_clarify`, `test_answer_unsupported`,
+`test_cli_cache_miss_exit_2`.
+
+**Step 4.7: docs.** This section of `PLAN.md`, and `docs/CONVENTIONS_RESOLVED.md` for the
+locked connection (B), the cache key (C.2) and the guard order (F.2).
 
 ## Section 5: eval
 
