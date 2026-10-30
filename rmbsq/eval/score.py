@@ -105,3 +105,41 @@ def compare_result(result: pd.DataFrame | None, gold: pd.DataFrame, spec, output
             if not _within(display, got, want):
                 correct, reason = False, reason or f"{m}: outside tolerance"
     return Check(correct, n, max_err if n else None, reason)
+
+
+def score_row(row, item) -> Check:
+    """C.1 and C.2 for 1 (system, item) row of the run results."""
+    system = row["system"] == "system"
+    if item.expected_intent == "answer":
+        if system:
+            ran = row["intent"] == "answer" and bool(row["spec_valid"]) and bool(row["ran"])
+        else:
+            ran = bool(row["ran"])
+        if not ran:
+            return Check(False, 0, None, "did not run")
+        return compare_result(row["result"], row["gold"], item.gold_spec, item.output_columns)
+    if item.expected_intent == "clarify":
+        # O-21 (b): the baseline has no way to ask, so it is never correct here
+        return Check(system and row["intent"] == "clarify", 0, None)
+    if item.expected_intent == "unsupported":
+        return Check(row["intent"] == "unsupported" if system else row["sql"] == "", 0, None)
+    raise ValueError(f"{item.id}: unknown expected_intent {item.expected_intent}")
+
+
+def score(results: pd.DataFrame, items) -> pd.DataFrame:
+    """Adds category, correct, n_values_checked and max_abs_err to the run results."""
+    by_id = {i.id: i for i in items}
+    checks = [score_row(row, by_id[row["item_id"]]) for _, row in results.iterrows()]
+    out = results.copy()
+    out["category"] = [by_id[i].category for i in results["item_id"]]
+    out["correct"] = [c.correct for c in checks]
+    out["n_values_checked"] = [c.n_values_checked for c in checks]
+    out["max_abs_err"] = [c.max_abs_err for c in checks]
+    return out
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """C.4: the Wilson score interval."""
+    centre = (k + z * z / 2) / (n + z * z)
+    half = z * math.sqrt(k * (n - k) / n + z * z / 4) / (n + z * z)
+    return centre - half, centre + half
