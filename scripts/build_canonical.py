@@ -17,10 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import duckdb  # noqa: E402
-
 from rmbsq.canonical.build import build_canonical, pool_monthly, row_counts, write_pool_monthly  # noqa: E402
 from rmbsq.config import load_config  # noqa: E402
+from rmbsq.db import connect_readonly  # noqa: E402
 from rmbsq.synth.truth import write_csv  # noqa: E402
 
 
@@ -40,7 +39,7 @@ def main(argv=None) -> int:
 
     outputs = args.outputs
     outputs.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(args.db), read_only=True)
+    con = connect_readonly(args.db)
     try:
         write_pool_monthly(pool_monthly(con), outputs / "pool_monthly.csv")
         counts = row_counts(con)

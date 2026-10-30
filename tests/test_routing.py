@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
-import duckdb
 import pytest
 
+from rmbsq.db import connect_readonly
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.compiler import compile, execute
 from rmbsq.semantic.spec import QuerySpec
@@ -23,7 +23,7 @@ def test_route_auto_choice(item):
 @pytest.mark.parametrize("item", [g for g in GOLD if g["id"] in AGG_SPECS], ids=lambda g: g["id"])
 def test_fact_and_agg_routes_equal(small_db, item):
     spec, cat = QuerySpec.model_validate(item["spec"]), load_catalog()
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     try:
         fact = execute(compile(spec, cat, route="fact"), con)
         agg = execute(compile(spec, cat, route="agg"), con)

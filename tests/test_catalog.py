@@ -1,7 +1,6 @@
 """Step 3.1: the metric and dimension catalogue (instruction 03 C.1, C.2)."""
 
-import duckdb
-
+from rmbsq.db import connect_readonly
 from rmbsq.semantic.catalog import load_catalog
 
 # instruction 03 C.1: name, kind, display, definition
@@ -58,7 +57,7 @@ def test_eighteen_dimensions():
 def test_allowed_values_from_db(small_db):
     cat = load_catalog(db=small_db)
     assert cat.allowed_values("state") == ["NSW", "QLD", "SA", "VIC", "WA"]
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     try:
         present = [r[0] for r in con.execute("SELECT DISTINCT originator FROM dim_deal ORDER BY 1").fetchall()]
     finally:

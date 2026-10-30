@@ -11,8 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import duckdb
 import yaml
+
+from rmbsq.db import connect_readonly
 
 ROOT = Path(__file__).resolve().parents[2]
 METRICS_YAML = ROOT / "semantic" / "metrics.yaml"
@@ -58,7 +59,7 @@ class Catalog:
             return list(dim.labels)
         if self.db is None:
             raise ValueError(f"allowed values of {name} come from the database; load the catalogue with db")
-        con = duckdb.connect(str(self.db), read_only=True)
+        con = connect_readonly(self.db)
         try:
             rows = con.execute(
                 f"SELECT DISTINCT {dim.column} FROM {dim.table} WHERE {dim.column} IS NOT NULL ORDER BY 1"

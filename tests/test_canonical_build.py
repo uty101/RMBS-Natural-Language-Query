@@ -4,12 +4,12 @@ import csv
 from decimal import Decimal
 from pathlib import Path
 
-import duckdb
 import numpy as np
 import pandas as pd
 import pytest
 
 from rmbsq.canonical.build import build_dim_loan, pool_monthly
+from rmbsq.db import connect_readonly
 from rmbsq.synth.truth import pool_monthly as truth_pool_monthly
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,7 +74,7 @@ def _describe(con, table):
 
 
 def test_tables_and_types(small_db):
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     for table, expected in C5.items():
         assert _describe(con, table) == expected, table
     agg = _describe(con, "agg_deal_month")
@@ -94,7 +94,7 @@ def test_tables_and_types(small_db):
 
 
 def test_agg_sums_equal_fact_sums(small_db):
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     agg = con.execute("SELECT " + ", ".join(f"sum({c})" for c in DIRECT) + " FROM agg_deal_month").fetchone()
     direct = con.execute(
         "SELECT " + ", ".join(DIRECT.values()) + " FROM fact_loan_month f JOIN dim_loan l ON f.loan_id = l.loan_id"
@@ -129,7 +129,7 @@ def _compare(canonical: pd.DataFrame, truth: pd.DataFrame):
 
 
 def test_pool_monthly_matches_truth(small_db, small):
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     canonical = pool_monthly(con)
     con.close()
     _compare(canonical, truth_pool_monthly(small["panel"]))
@@ -137,7 +137,7 @@ def test_pool_monthly_matches_truth(small_db, small):
 
 @pytest.mark.full
 def test_full_pool_monthly_matches_truth(full_db):
-    con = duckdb.connect(str(full_db), read_only=True)
+    con = connect_readonly(full_db)
     canonical = pool_monthly(con)
     con.close()
     with open(ROOT / "outputs" / "pool_monthly_truth.csv", encoding="utf-8", newline="") as f:
@@ -147,7 +147,7 @@ def test_full_pool_monthly_matches_truth(full_db):
 
 def test_dim_period(small_db):
     """Instruction 03 D.4: 60 months, window_start to window_end, with 3 spot checks."""
-    con = duckdb.connect(str(small_db), read_only=True)
+    con = connect_readonly(small_db)
     try:
         cols = con.execute("SELECT column_name, data_type FROM information_schema.columns "
                            "WHERE table_name = 'dim_period' ORDER BY ordinal_position").fetchall()

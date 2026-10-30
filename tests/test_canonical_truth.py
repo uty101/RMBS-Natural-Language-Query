@@ -4,11 +4,11 @@ fact_loan_month, built from the raw trustee files, is joined to the true panel f
 `simulate` on loan_id and period and compared on every column they share.
 """
 
-import duckdb
 import numpy as np
 import pandas as pd
 import pytest
 
+from rmbsq.db import connect_readonly
 from rmbsq.synth.generate import run_profile
 
 MONEY = ["opening_balance", "scheduled_principal", "curtailment", "closing_balance", "exit_balance", "loss"]
@@ -24,7 +24,7 @@ FACT_SQL = (
 
 
 def _assert_equal(db, panel: pd.DataFrame):
-    con = duckdb.connect(str(db), read_only=True)
+    con = connect_readonly(db)
     fact = con.execute(FACT_SQL).df()
     con.close()
     fact["loan_id"] = fact["loan_id"].astype(str)

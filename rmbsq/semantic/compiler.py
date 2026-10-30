@@ -142,10 +142,9 @@ def build_tree(spec, catalog, route: str) -> exp.Select:
     flows = [m for m in metrics if m.kind == "flow"]
     prefixes = list(dict.fromkeys(FLOW[m.name][0] for m in flows))
 
-    # O-37: stock metrics in spec order, then flow metrics in spec order, as the gold hand
-    # SQL orders them (S11); B.7's text says spec order, which differs only when a flow
-    # metric comes before a stock metric
-    outputs = [_col(m.name, "s") for m in stock] + [exp.alias_(flow_value(m.name, "w"), m.name) for m in flows]
+    # B.7 and O-37 (b), instruction 04 A: 1 column per metric in strict spec order
+    outputs = [_col(m.name, "s") if m.kind == "stock" else exp.alias_(flow_value(m.name, "w"), m.name)
+               for m in metrics]
     q = exp.select(*[_col(k, "k") for k in keys], *outputs).from_("keys AS k")
     if stock:
         q = q.join("stock AS s", on=_on(keys, "k", "s"), join_type="left")

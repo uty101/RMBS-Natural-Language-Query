@@ -8,11 +8,11 @@ after scaling by max(1, |value|), and the gold row count.
 import json
 from pathlib import Path
 
-import duckdb
 import numpy as np
 import pandas as pd
 import pytest
 
+from rmbsq.db import connect_readonly
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.compiler import compile, execute
 from rmbsq.semantic.spec import QuerySpec
@@ -43,7 +43,7 @@ def max_scaled_diff(got: pd.DataFrame, want: pd.DataFrame, metrics: list[str]) -
 def run_gold(db: Path, item: dict, route: str = "auto") -> tuple[pd.DataFrame, pd.DataFrame, str]:
     spec = QuerySpec.model_validate(item["spec"])
     compiled = compile(spec, load_catalog(), route=route)
-    con = duckdb.connect(str(db), read_only=True)
+    con = connect_readonly(db)
     try:
         got = execute(compiled, con)
         want = con.execute(item["hand_sql"]).df()
