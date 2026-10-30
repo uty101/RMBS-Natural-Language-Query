@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from rmbsq.canonical.build import canonical_rows
 from rmbsq.config import load_config
 from rmbsq.synth.generate import run_profile, write_raw
 
@@ -27,3 +28,9 @@ def small_raw(small, tmp_path_factory):
     out = tmp_path_factory.mktemp("small_raw")
     write_raw(small, out)
     return out
+
+
+@pytest.fixture(scope="session")
+def small_rows(small_raw, cfg):
+    """The small profile's canonical rows (ingested, deduped, calls detected, enriched)."""
+    return canonical_rows(small_raw, cfg)
