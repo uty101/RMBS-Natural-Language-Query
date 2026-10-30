@@ -100,9 +100,26 @@ def test_fixed_to_variable_switch(quiet):
 
 @pytest.fixture(scope="module")
 def hardship_panel(cfg):
+    # D050 issues inside the window (2023-11), so the issue reset (E.2) makes each loan's
+    # first emitted row an entry row and no spell is cut by the window start
     hcfg = _with(cfg, p_hardship=1.0, p_repurchase=0.0)
-    panel, _ = _run(hcfg, _frame(hcfg, "D001", 50, "2018-06"))
+    panel, _ = _run(hcfg, _frame(hcfg, "D050", 50, "2022-06"))
     return panel
+
+
+def hardship_spells(g: pd.DataFrame) -> list[tuple[int, bool, bool]]:
+    """One loan's rows in period order -> (length, starts on an entry row, includes the
+    loan's last emitted row) per spell. A spell starts at an entry row, or at a hardship
+    row after a non-hardship row, and runs while rows are hardship and not entry rows."""
+    flag, entry = g["hardship_flag"].to_numpy(), g["hardship_entry"].to_numpy()
+    spells, start = [], None
+    for i in range(len(flag) + 1):
+        if start is not None and (i == len(flag) or not flag[i] or entry[i]):
+            spells.append((i - start, bool(entry[start]), i == len(flag)))
+            start = None
+        if i < len(flag) and flag[i] and start is None:
+            start = i
+    return spells
 
 
 def test_hardship_rows_frozen(hardship_panel):
@@ -114,20 +131,19 @@ def test_hardship_rows_frozen(hardship_panel):
 
 
 def test_hardship_spell_lengths(cfg, hardship_panel):
-    """Every hardship spell lasts hardship_min to hardship_max consecutive rows."""
+    """Instruction 01b B.1: split each loan's hardship rows into spells at entry rows;
+    every spell is hardship_min to hardship_max rows and starts on an entry row. The last
+    spell is excluded only if it includes the loan's last emitted row."""
     p = hardship_panel.sort_values(["loan_id", "period"])
-    for _, g in p.groupby("loan_id"):
-        flags = g["hardship_flag"].to_numpy()
-        runs, n = [], 0
-        for f in flags:
-            if f:
-                n += 1
-            elif n:
-                runs.append(n)
-                n = 0
-        if n:
-            runs.append(n)
-        assert all(cfg.behaviour.hardship_min <= r <= cfg.behaviour.hardship_max for r in runs), runs
+    checked = 0
+    for loan_id, g in p.groupby("loan_id"):
+        for length, on_entry, at_end in hardship_spells(g):
+            if at_end:
+                continue
+            assert cfg.behaviour.hardship_min <= length <= cfg.behaviour.hardship_max, (loan_id, length)
+            assert on_entry, loan_id
+            checked += 1
+    assert checked > 0
 
 
 def test_default_after_months_in_90(cfg):

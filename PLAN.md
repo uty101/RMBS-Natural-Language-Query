@@ -100,12 +100,18 @@ with the 12-month payment shock lookback, hardship entry, transitions on the
 start-of-month bucket, exits (called > defaulted > repurchased > prepaid, suppressed
 before issue), cash flows rounded to the cent, end-of-month flags, issue balance, call
 trigger at 25% of issue balance, and rows. The panel has the part E columns, including
-months_in_90 and indexed_value; the deals frame carries issue_balance. Tests in
+months_in_90 and indexed_value, plus a boolean `hardship_entry` after `hardship_flag`, true
+in the month a loan enters hardship at E.5 (instruction 01b B.1; used only inside
+`rmbsq/synth/` and its tests, never written to the trustee files). The deals frame carries
+issue_balance. Tests in
 `tests/test_synth_simulate.py`, on constructed loan frames with a modified config where
 a path must be forced (O-26), or on a property of every realised path:
 `test_pi_annuity_matches_npf_pmt`; `test_io_switch_at_io_end`;
 `test_fixed_to_variable_switch`; `test_hardship_rows_frozen` and
-`test_hardship_spell_lengths` (p_hardship = 1); `test_default_after_months_in_90`
+`test_hardship_spell_lengths` (p_hardship = 1 and p_repurchase = 0; each loan's hardship
+rows split into spells at its entry rows; every spell is hardship_min to hardship_max rows
+and starts on an entry row, except that a loan's last spell is excluded if it includes
+the loan's last emitted row; O-34, instruction 01b B.1); `test_default_after_months_in_90`
 (a0 = 50, 200 loans); `test_call_property_small`; `test_every_deal_full_at_issue`;
 `test_simulate_deterministic`. No committed outputs. Review evidence: the test output;
 the hand-built cases' rows; the loans-at-issue count per small-profile deal.
@@ -158,11 +164,14 @@ after dedupe for 2 loans of that deal-month.
 
 **Step 2.3: call detection.** Implements `detect_calls(df) -> DataFrame` in
 `rmbsq/canonical/build.py` (6.2 rule, share from `call_detect_share`, both formats).
-Tests in `tests/test_canonical_calls.py` (O-28): `test_format_b_calls_recovered` uses a
-constructed frame with a known call month, and also asserts on the small profile that the
-recovered format B calls equal the true panel's called exits; the small profile has at
-least 1 called format B deal in the reference run, and if it has none the assertion fails
-loudly rather than passing vacuously. `test_format_a_calls_unchanged`. Review evidence:
+Tests in `tests/test_canonical_calls.py` (O-28, amended by instruction 01b B.3):
+`test_format_b_calls_recovered` uses a constructed frame with a known call month to prove
+the mechanics, and also asserts on the small profile that the recovered format B calls
+equal the true panel's called exits, as an equality where empty on both sides is allowed
+(after the 01b recalibration the small profile has no called format B deal). A new test
+marked `full` checks that all 7 called format B deals of the full profile are recovered
+with their exact call months and loan counts. Instruction 02 specifies these tests.
+`test_format_a_calls_unchanged`. Review evidence:
 for every called deal, the call month and number of called loans, truth vs canonical; for
 format A, CALL rows before and after detection.
 

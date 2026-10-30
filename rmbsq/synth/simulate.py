@@ -15,7 +15,7 @@ from rmbsq.synth.months import from_period, month_index, to_period
 
 PANEL_COLUMNS = [
     "loan_id", "deal_id", "period", "opening_balance", "scheduled_principal", "curtailment",
-    "closing_balance", "interest_rate", "dpd_bucket", "hardship_flag", "months_in_90",
+    "closing_balance", "interest_rate", "dpd_bucket", "hardship_flag", "hardship_entry", "months_in_90",
     "exit_reason", "exit_balance", "loss", "indexed_value", "indexed_ltv",
 ]
 
@@ -231,6 +231,7 @@ def simulate(cfg: Config, loans: pd.DataFrame, cash: pd.DataFrame, hpi: pd.DataF
                     "interest_rate": rate[e],
                     "dpd_bucket": np.where(in_h, 0, new_b)[e],
                     "hardship_flag": in_h[e],
+                    "hardship_entry": enter[e],
                     "months_in_90": m90[e],
                     "reason": reason[e],
                     "exit_balance": exit_balance[e],

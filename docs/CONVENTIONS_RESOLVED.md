@@ -80,6 +80,7 @@ the O-number is kept next to each decision.
 | G4 | Every profile uses issue_month(k) = first_issue + floor((k − 1) × issue_span_months / n_deals) with its own n_deals. Resubmissions apply only to listed deal-months whose deal exists and whose month is in the emitted rows: D004 2023-06 on the small profile (O-10). | instr 01 B |
 | G5 | Calibration statistics are the formulas of instr 01 part F (O-11). | instr 01 F |
 | G6 | Trustee schemas are instr 01 part G: months as YYYY-MM strings, flags int8, format B money as int64 cents, acronyms written as words (`OrigLtv`, `IoFlag`) (O-12). | instr 01 G |
+| G8 | The true panel carries a boolean `hardship_entry` after `hardship_flag`, true in the month a loan enters hardship at E.5. It is used only inside `rmbsq/synth/` and its tests, and is not written to the trustee files. Hardship spells are split at entry rows (O-34). | instr 01b B.1 |
 | G7 | Tests force paths with a modified copy of `Config` built with `dataclasses.replace`; where a path can't be forced to certainty, the test checks a property of every realised path (O-26). | instr 01 B |
 
 ## Later sections (decided in instruction 01 part B)
@@ -87,7 +88,7 @@ the O-number is kept next to each decision.
 | # | Convention | Source |
 |---|---|---|
 | S1 | `pool_monthly_truth.csv` has the columns of `pool_monthly.csv`. Test 2.5 compares truth and canonical on the small profile in a temp folder; a second, `full` test compares the committed full truth with the canonical layer built from the committed full raw data (O-13). | instr 01 B |
-| S2 | Test 2.3 uses a constructed frame with a known call month, and also asserts on the small profile that recovered format B calls equal the true called exits; it fails loudly if the small profile has no called format B deal (O-28). | instr 01 B |
+| S2 | Test 2.3 uses a constructed frame with a known call month to prove the mechanics, and asserts on the small profile that recovered format B calls equal the true called exits, an equality where empty on both sides is allowed; a `full` test checks that all 7 called format B deals of the full profile are recovered with exact call months and loan counts (O-28 as amended). | instr 01 B, instr 01b B.3 |
 | S3 | The 5 rows of test 2.4 are the first loan_id of each originator, at the latest period where that loan has a row with closing_balance > 0, in the small profile (O-29). | instr 01 B |
 | S4 | `compile(spec, catalog, route="auto")` (O-15). | instr 01 B |
 | S5 | Catalogue YAML keys: metric `name, kind, numerator, denominator, display, definition`; dimension `name, column, table, level, labels, definition` (O-30). | instr 01 B |
