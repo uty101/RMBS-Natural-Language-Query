@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: uv venv
+        run: uv venv --python 3.12
+      - name: install from the lock file
+        run: uv pip sync requirements-lock.txt
+      - name: install the package
+        run: uv pip install -e . --no-deps
+      - name: pytest -q
+        run: .venv/bin/python -m pytest -q
+      - name: pytest -q -m full
+        run: .venv/bin/python -m pytest -q -m full
