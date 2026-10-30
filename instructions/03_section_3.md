@@ -180,6 +180,10 @@ Commit one per step.
 **3.0 Fixtures and `dim_period`.**
 - Copy the 2 JSON files (the header of this file).
 - Add D.4 to `build_canonical`.
+- **Output paths.** Both scripts currently write to the repo's `outputs/` whatever data they run on. Chat Claude ran the small profile for its review, and that overwrote 4 committed full-profile CSVs.
+  - Add `--outputs DIR` to `scripts/generate_data.py` and `scripts/build_canonical.py`.
+  - The default is the repo's `outputs/` only for `--profile full`, or when `--raw` is the repo's `data/raw/`. Otherwise it is `<--out or --raw>/../outputs`.
+  - Test `test_small_run_leaves_repo_outputs_alone`: run both scripts on the small profile in a temp folder, then assert the SHA-256 of every file in the repo's `outputs/` is unchanged.
 - Rebuild the full database and update `outputs/canonical_row_counts.csv` (the new row is `dim_period, all, 60`).
 - Tests: `test_dim_period` (60 rows; spot check 2021-10, 2024-12 and 2026-09). Every Section 2 test still passes.
 
