@@ -200,6 +200,18 @@ rows`, trustee_format `all` for tables not split by format (O-14). Review eviden
 `DESCRIBE` of every table; row counts; `pool_monthly.csv` first 3 and last 3 rows; max
 absolute difference against truth per column.
 
+**Step 2.6: canonical equals truth.** Added by instruction 02 (D 2.6). New test file
+`tests/test_canonical_truth.py`. `test_canonical_equals_truth_panel` joins
+`fact_loan_month`, built by `build_canonical` from the small profile's raw trustee files,
+to the true panel from `simulate` on loan_id and period, and asserts: the same row count
+with no unmatched row on either side; every money column equal to the cent;
+interest_rate, indexed_value and indexed_ltv equal to 1e-9; dpd_bucket, hardship_flag and
+exit_reason identical. `test_full_canonical_equals_truth_panel`, marked `full`, makes the
+same comparison between the canonical layer built from the committed full `data/raw/` and
+the full panel regenerated in memory. Passing it proves the canonical layer undoes all 4
+trustee traps, so every later number rests on cleaning that is proved, not assumed.
+Review evidence: both test outputs, verbatim.
+
 ## Section 3: semantic layer and compiler
 
 **Step 3.1: catalogue.** Files `semantic/metrics.yaml` (exactly the 12 metrics of 6.3),
