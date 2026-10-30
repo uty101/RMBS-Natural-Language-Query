@@ -1,0 +1,13 @@
+stat,value
+n_deals,50
+n_loans,21945
+n_loan_months,773336
+n_raw_rows,774057
+n_resubmission_duplicates,721
+n_called_deals,17
+n_called_deals_b,7
+canonical_truth_mismatches,0
+arrears_90p_first,0.0018019773
+arrears_90p_peak,0.0153861877
+arrears_90p_latest,0.0047055595
+arrears_90p_peak_month,2024-08

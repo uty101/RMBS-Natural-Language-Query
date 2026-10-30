@@ -1,0 +1,7 @@
+trap,item_id,gold,naive,naive_rule
+arrears_units,Q27,0.0066313916,0.0058570250,2 or more missed payments read as 60+ days
+call_as_prepay,Q29,0.2155508154,1.0000000000,clean-up call exits counted as prepayments
+call_as_prepay,Q30,0.1831651907,0.4898374471,clean-up call exits counted as prepayments
+exit_rows,Q32,9975,10572,exit rows counted as live loans
+weighting,Q33,0.5196431995,0.5091750448,simple mean instead of balance weighting
+compounding,Q2_2025,0.1806444857,0.1806323390,monthly CPR averaged instead of compounded
