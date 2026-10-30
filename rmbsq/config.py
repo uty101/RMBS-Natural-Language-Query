@@ -89,6 +89,7 @@ class Hpi:
     noise_phi: float
     noise_sd: float
     base: float
+    round_dp: int
 
 
 @dataclass(frozen=True)

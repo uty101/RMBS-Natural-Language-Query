@@ -7,6 +7,10 @@ order, columns months 2016-02 to 2026-09.
     e[s, t] = noise_phi * e[s, t-1] + noise_sd * z[s, t-1]
     r[s, t] = beta_area * drift_city,t / 100 + e[s, t] - e[s, t-1]
     HPI[s, 2016-01] = base,  HPI[s, t] = HPI[s, t-1] * exp(r[s, t])
+
+The recursion runs at full precision, then the whole matrix is rounded with
+numpy.round(hpi, round_dp) (instruction 01b B.4). Everything downstream uses the rounded
+values. `exp` differs in the last digit between platforms; 6 dp removes that.
 """
 
 from __future__ import annotations
@@ -32,8 +36,8 @@ def drift_by_month(cfg: Config, cities: list[str], months: np.ndarray) -> np.nda
     return out
 
 
-def hpi_matrix(cfg: Config, geo: pd.DataFrame, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
-    """(int months 2016-01..2026-09, HPI array of shape (60, 129))."""
+def hpi_unrounded(cfg: Config, geo: pd.DataFrame, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """(int months 2016-01..2026-09, full-precision HPI array of shape (60, 129))."""
     months = month_range(cfg.calendar.sim_start, cfg.calendar.window_end)
     n_s, n_t = len(geo), len(months)
     z = rng.standard_normal((n_s, n_t - 1))
@@ -53,6 +57,12 @@ def hpi_matrix(cfg: Config, geo: pd.DataFrame, rng: np.random.Generator) -> tupl
         hpi[:, t] = hpi[:, t - 1] * np.exp(r)
         e_prev = e
     return months, hpi
+
+
+def hpi_matrix(cfg: Config, geo: pd.DataFrame, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+    """(int months, HPI rounded to round_dp decimal places)."""
+    months, hpi = hpi_unrounded(cfg, geo, rng)
+    return months, np.round(hpi, cfg.hpi.round_dp)
 
 
 def build_hpi(cfg: Config, geo: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:

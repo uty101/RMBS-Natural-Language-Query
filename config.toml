@@ -69,6 +69,7 @@ Adelaide = 0.85
 noise_phi = 0.8
 noise_sd = 0.004
 base = 100.0
+round_dp = 6                   # new key (instruction 01b B.4)
 
 [behaviour]
 p_hardship = 0.002

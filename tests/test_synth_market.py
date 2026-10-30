@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from rmbsq.synth.geography import build_geography
-from rmbsq.synth.hpi import build_hpi
+from rmbsq.synth.hpi import build_hpi, hpi_matrix, hpi_unrounded
 from rmbsq.synth.rates import build_cash_rate
 
 
@@ -53,3 +53,15 @@ def test_hpi_frame_rows(cfg):
     hpi = build_hpi(cfg, build_geography(cfg), _rng(cfg))
     assert len(hpi) == 60 * 129
     assert (hpi[hpi["period"] == pd.Timestamp("2016-01-01")]["hpi"] == 100.0).all()
+
+
+def test_hpi_rounded(cfg):
+    geo = build_geography(cfg)
+    _, raw = hpi_unrounded(cfg, geo, _rng(cfg))
+    _, rounded = hpi_matrix(cfg, geo, _rng(cfg))
+    assert np.array_equal(rounded, np.round(raw, cfg.hpi.round_dp))
+    frame = build_hpi(cfg, geo, _rng(cfg))["hpi"].to_numpy()
+    assert np.array_equal(frame, rounded.reshape(-1))
+    # at most round_dp decimal places: rounding again changes nothing
+    assert np.array_equal(np.round(frame, cfg.hpi.round_dp), frame)
+    assert cfg.hpi.round_dp == 6
