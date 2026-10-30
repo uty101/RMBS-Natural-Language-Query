@@ -120,7 +120,11 @@ Outputs, written with LF and floats `%.10f`:
 **D.3 The live run.**
 
 - `ANTHROPIC_API_KEY` must be set in the environment. Never write the key to any file, log or commit.
-- If it isn't set, this is a stop condition: finish every other step (5.0 to 5.3, and the code and tests of 5.5 to 5.7), then stop and report.
+- If it isn't set, this is not a failure. The key is deliberately left unset for now, so the repo can be shared without anyone's key. Do this:
+  - finish every other step in full: 5.0 to 5.3, the code and tests of 5.5 and 5.6, and all of 5.7, **including the full benchmark run and its committed `outputs/scale_benchmark.csv`**, since the benchmark needs no key;
+  - leave `data/llm_cache/` empty, and write no eval output CSVs;
+  - in the status file, set the outcome to "complete except the live eval run (no API key, by design)", and list the exact 2 commands that finish it later: setting `$env:ANTHROPIC_API_KEY` in PowerShell, and `python scripts/run_eval.py --mode record`;
+  - the `full` tests that need the recorded cache (5.5) are skipped only through a check: `pytest.skip` with the reason "no recorded eval cache" when `data/llm_cache/` is empty. That is the one permitted skip, and it is not a loosened test, because the test runs unchanged once the cache exists.
 - The cost is about 40 spec calls, 34 narration calls and 40 baseline calls.
 - Commit every file in `data/llm_cache/` together with the outputs.
 
