@@ -398,54 +398,121 @@ locked connection (B), the cache key (C.2) and the guard order (F.2).
 
 ## Section 5: eval
 
-**Step 5.1: questions.** File `eval/questions.yaml`, exactly as given in instruction 05,
-loaded by `load_items(path) -> list[EvalItem]` in `rmbsq/eval/run.py`. Test
-`tests/test_eval_items.py::test_forty_items_category_counts` (40 items: simple 10,
-grouped 10, time 6, trap 8, ambiguous 4, unsupported 2; each trap type on 2 items).
-Review evidence: item_id, category and trap for all 40 items.
+Instruction 05 fixes the questions (B), scoring (C), the runs (D) and the benchmark (E).
+Its questions file is committed as `eval/questions.yaml`, a byte for byte copy, never
+edited. This is the only section that calls the API, and only through
+`scripts/run_eval.py --mode record` (D.3). Without `ANTHROPIC_API_KEY` the live run is
+left for later by design: every other step is built in full, `data/llm_cache/` stays
+empty and no eval output CSV is written.
 
-**Step 5.2: gold check.** Test `tests/test_gold.py::test_gold_spec_matches_gold_sql`:
-compile(gold_spec) equals gold_sql to `gold_tol_abs` on every value, for every answerable
-item. It runs on the full data and is marked `full` (O-31). Review evidence: per item,
-rows compared and max abs difference.
+**The trap set (instruction 05 B.1, amending kickoff 6.11 and part 7).** The traps are
+definition traps, 2 items each: `arrears_units` (Q27, Q28: "2 or more missed payments"
+read as 60+ days), `call_as_prepay` (Q29, Q30: clean-up call exits counted as
+prepayments), `exit_rows` (Q31, Q32: exit rows counted as live loans) and `weighting`
+(Q33, Q34: a simple mean where the metric is balance-weighted). The kickoff's `hardship`
+and `resubmission` traps are dropped: both are undone in the canonical layer that both
+systems read, and Section 2 proved that row for row. `outputs/trap_failures.csv` uses
+these 4 names.
 
-**Step 5.3: run, score, report.** Files `rmbsq/eval/run.py` (`run_system`,
-`run_baseline`), `rmbsq/eval/score.py` (`score`) and `rmbsq/eval/report.py` (`wilson`,
-per category accuracy). Scoring follows 6.11: same row keys; abs `tol_ratio_abs` for
-ratios and LTVs; rel `tol_balance_rel` for balances; exact for counts. Row order must
-match for items with `order` set; otherwise row keys are compared as a set (O-22). An
-empty baseline SQL string counts as correct only on unsupported items (O-21). Tests in
-`tests/test_scoring.py`: `test_score_synthetic_frames` and `test_wilson_hand_values`
-((7, 10) and (40, 40)). Review evidence: the hand Wilson values with the working; each
-synthetic scoring case and its verdict.
+**Step 5.0: questions.** `eval/questions.yaml`, loaded by `load_items(path) ->
+list[EvalItem]` in `rmbsq/eval/run.py`; `gold_spec` is parsed as a `QuerySpec`. Test
+`tests/test_eval_items.py::test_questions_file`: 40 items (simple 10, grouped 10, time 6,
+trap 8, ambiguous 4, unsupported 2), 2 items per trap name, every answer item has
+gold_spec, output_columns and gold_sql, every gold_spec validates. Review evidence: id,
+category and trap for all 40 items.
 
-**Step 5.4: live eval.** Script `scripts/run_eval_live.py`: record mode, writes
-`data/llm_cache/`, `outputs/eval_results.csv` and `outputs/eval_summary.csv` (Section 7
-columns). A missing `ANTHROPIC_API_KEY` is a stop condition: finish 5.1 to 5.3 and 5.5's
-code, then stop and report. No test; the step is checked by review evidence only (O-25):
-`eval_summary.csv` in full; `eval_results.csv` in full; the cache file count.
+**Step 5.1: gold check.** Test `tests/test_eval_gold.py::test_gold_spec_equals_gold_sql`,
+marked `full`: for every answer item, `execute(compile(gold_spec))` equals `gold_sql`'s
+result by the C.3 rule. Review evidence: per item, values compared and max abs error.
 
-**Step 5.5: replay.** Test `tests/test_eval_replay.py::test_replay_reproduces_csvs`:
-re-running the eval from the committed cache reproduces both CSVs on every column
-except `latency_s`. It runs on the full data and is marked `full` (O-31). Review
-evidence: the column-by-column comparison result.
+**Step 5.2: scoring (instruction 05 C).** `rmbsq/eval/score.py`.
+- Answer items: the system is correct only if its final spec intent is answer, spec_valid
+  is true, the query ran, and the result matches gold by C.3. The baseline is correct only
+  if its SQL ran and the result matches.
+- Ambiguous items: the system is correct if its intent is clarify. The baseline is never
+  correct (O-21 (b)); its intent is recorded.
+- Unsupported items: the system is correct if its intent is unsupported; the baseline if
+  its SQL is the empty string.
+- C.3 result comparison against `gold_sql` run on the same connection: every
+  `output_columns` name must be a result column (extras ignored); the key columns are the
+  gold group_by dimensions plus `period_label`, each cell normalised (bool to yes/no, a
+  whole-number int or float to `str(int(v))`, else `str(v).strip()`), and the result's
+  key rows must equal gold's as a multiset, or in order when the gold spec has `order`
+  (O-22 (a)); values are matched by key for each metric column, `pct` within absolute
+  `tol_ratio_abs`, `aud_m` within relative `tol_balance_rel`, `count` equal after rounding
+  and within 1e-9 of an integer; a null where gold is not null is wrong.
+  `n_values_checked` counts compared cells and `max_abs_err` is the largest absolute
+  difference, blank when nothing was compared.
+- `wilson(k, n, z)`: centre (k + z²/2) / (n + z²), half width
+  z √(k(n − k)/n + z²/4) / (n + z²).
 
-**Step 5.6: trap failures.** `outputs/trap_failures.csv` (`system, item_id, trap,
-expected, got`), built from the eval results by `build_trap_failures` in
-`rmbsq/eval/report.py`. Test
-`tests/test_trap_failures.py::test_row_count_matches_wrong_traps`. Review evidence: the
-CSV in full.
+Tests in `tests/test_eval_score.py`: key order with and without `order`, each tolerance
+on both sides of its bound, extra columns ignored, a missing column, a null, bool and
+float key normalisation, the C.2 rules for both systems, and `wilson` at (7, 10) and
+(40, 40) against hand values with 6 dp.
 
-**Step 5.7: scale benchmark.** File `rmbsq/eval/benchmark.py` (`build_tiled_db(src, dst,
-copies)`, `run_benchmark(items, src_db, tiled_db, cfg)`) and script
-`scripts/run_benchmark.py`, following 6.12: 36 copies with `C{cc}-` prefixes on loan_id,
-deal_id and deal_name (`C07-HARB 2021-1`), `agg_deal_month` rebuilt, every answerable
-gold spec on 1x and 36x, routes `auto` and `fact`, `warmup` then `repeats` timed runs,
-each `thread_settings` value. Deal-filtered specs are rewritten to copy `C00-` on the 36x
-database (O-23). Output `outputs/scale_benchmark.csv`, with timings excluded from byte
-checks. Tests in `tests/test_benchmark.py`: `test_tiled_row_count` (copies × source rows)
-and `test_tiled_pool_spec_matches_1x` (ratios equal, totals × copies), both on the small
-profile. Review evidence: `scale_benchmark.csv` in full; the row count of each database.
+**Step 5.3: runner (instruction 05 D.1, D.2).** `rmbsq/eval/run.py` (`run_system`,
+`run_baseline`, `run_eval`), `rmbsq/eval/report.py` (`summarise`, `build_trap_failures`,
+writers) and `scripts/run_eval.py --mode {record,replay}`.
+- Per item the system runs `answer`: 1 spec call, plus 1 narration call when its intent
+  ends as answer. The baseline makes 1 `baseline_sql` call with the item's
+  `output_columns`, or `["period_label"]` for non-answer items.
+- Record mode makes the missing calls into `data/llm_cache/`, then runs again in replay
+  mode; the outputs always come from the replay pass. The database is
+  `data/canonical/rmbs.duckdb` through `connect_readonly`.
+- Outputs, LF, floats `%.10f`: `outputs/eval_results.csv` (kickoff part 7 columns; the
+  baseline's intent is `sql`, `decline` or `error`; latency_s and the token columns are
+  summed over the item's calls, from the cache), `outputs/eval_summary.csv` (system ×
+  each category and `total`), `outputs/trap_failures.csv` and `outputs/eval_detail.jsonl`.
+- `outputs/eval_detail.jsonl` holds 1 JSON object per (system, item), sorted keys: the
+  question, intent, spec (system only), `sql_duckdb` or the baseline `sql`, the result
+  rows as display strings (at most 20), text (system only), correct and error.
+
+Tests in `tests/test_eval_run.py`, in replay against fixture caches for Q02, Q35 and Q39
+in a temp cache dir, with a temp outputs dir: the 3 result rows per system, and the D.2
+formats.
+
+**Step 5.4: live run (instruction 05 D.3).** `python scripts/run_eval.py --mode record`
+with `ANTHROPIC_API_KEY` set in the environment (never written to any file). About 40
+spec, 34 narration and 40 baseline calls. Every file in `data/llm_cache/` is committed
+with the outputs. Review evidence: `eval_summary.csv` in full; per item intent and
+correct for both systems; the detail lines of every wrong item; 3 complete system
+answers (Q11, Q35, Q39); guard trips; calls, tokens and live wall time.
+
+**Step 5.5: replay reproduces.** Test
+`tests/test_eval_replay.py::test_eval_replay_reproduces`, marked `full`: replay from the
+committed cache into a temp dir reproduces `eval_results.csv`, `eval_summary.csv`,
+`trap_failures.csv` and `eval_detail.jsonl` byte for byte (latency comes from the cache).
+When `data/llm_cache/` is empty it calls `pytest.skip("no recorded eval cache")`, the one
+permitted skip.
+
+**Step 5.6: trap failures.** `build_trap_failures` in `rmbsq/eval/report.py`: 1 row per
+wrong trap answer, `system, item_id, trap, expected, got`. `expected` is the gold first
+metric's first value formatted by `format_table`; `got` is the same for the result, or the
+intent or error text when there is no value. Test
+`tests/test_eval_run.py::test_trap_failures_row_count`: the row count equals the number of
+wrong trap answers in `eval_results.csv`.
+
+**Step 5.7: scale benchmark (instruction 05 E, kickoff 6.12, O-23 (a)).**
+`rmbsq/eval/benchmark.py` (`build_tiled_db(src, dst, copies)`, `run_benchmark(items,
+src_db, tiled_db, cfg)`) and `scripts/run_benchmark.py`.
+- `data/canonical/rmbs_x36.duckdb` (git-ignored): `fact_loan_month` and `dim_loan` copied
+  with loan_id and deal_id prefixed `C{c:02d}-`, `dim_deal` with deal_id and deal_name
+  prefixed the same way, `dim_period`, `hpi` and `cash_rate` copied once, and
+  `agg_deal_month` rebuilt from the tiled fact with the Section 2 statement.
+- All 34 answer items' gold specs through `compile` and `execute`, on the 1x and 36x
+  databases, routes auto and fact, threads 1 and DuckDB's default (`threads = 0`); deal
+  filters rewritten to copy `C00-` on 36x; 1 untimed warm-up then 5 timed repeats with
+  `time.perf_counter`. `connect_readonly` gains `threads: int = 1`, 0 meaning DuckDB's
+  default; the default connection stays 1 thread.
+- Output `outputs/scale_benchmark.csv`: `item_id, db, db_rows, route, threads, median_s,
+  max_s`. Timings are excluded from every byte check.
+
+Tests in `tests/test_benchmark.py` on the small profile with copies = 3: the tiled row
+count is 3 × the source; for S01 and S12, ratio metrics on the tiled database equal the
+1x values to 1e-9, and balance_total and loan_count are 3 × to 1e-9 relative. Review
+evidence: per (db, route, threads) the median and max of median_s over the 34 items, the
+tiled build time and both database sizes.
 
 ## Section 6: repo write-up
 
