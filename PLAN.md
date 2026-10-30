@@ -516,33 +516,64 @@ tiled build time and both database sizes.
 
 ## Section 6: repo write-up
 
-**Step 6.1: figures.** `outputs/figures/eval_accuracy.png`,
-`arrears_90p_by_vintage.png`, `cpr_by_city.png` and `scale_benchmark.png`, drawn by
-`scripts/make_figures.py` from CSVs, each stating that the data is synthetic. The
-by-vintage and by-city figures read `outputs/arrears_90p_by_vintage.csv` and
-`outputs/cpr_by_city.csv`, built through `compile` from governed specs (O-32). No test;
-review evidence only (O-25): each figure embedded, with its source CSV rows.
+Instruction 06 replaces the earlier plan for this section. Chat Claude wrote all the
+prose, as 2 templates; Claude Code writes only code, generated tables, figures and the
+values that fill the placeholders. No API call is made.
 
-**Step 6.2: transcripts.** `outputs/transcripts/01_answer.md`, `02_clarify.md`,
-`03_unsupported.md` from cached runs of the questions named in instruction 06. Each
-holds the question, spec JSON, Oracle SQL, result table and narration. No test; review
-evidence only (O-25): the 3 files in full.
+**Two states.** The eval is *pending* while `outputs/eval_summary.csv` doesn't exist (the
+state committed in this section) and *recorded* once it does. `scripts/build_writeup.py`
+regenerates every write-up file for whichever state the repo is in, so a reader who
+records the eval with their own key gets updated documents from 1 command.
 
-**Step 6.3: design note.** `docs/DESIGN_NOTE.md`, at most 1,100 words, with the structure
-given in instruction 06. It lists HPI regression and roll rate tools as phase 2
-(correction 3.7). No test; review evidence only (O-25): the word count.
+**Step 6.0: templates and render.** `templates/README.md.tmpl` and
+`templates/DESIGN_RESPONSE.md.tmpl`, copied byte for byte from `instructions/06_templates/`,
+and `templates/fixed_numbers.txt` (the design constants written as literals in the
+templates). `rmbsq/deliverable/render.py::render(template_text, claims, blocks,
+eval_recorded) -> str`: `{{name}}` scalars and blocks, `{{#eval}}` and `{{^eval}}`
+sections. `rmbsq/deliverable/numbers.py::unexplained_numbers(rendered, claims, blocks,
+fixed) -> list[str]`, the number check, also used by Section 7. Tests
+`tests/test_render.py::test_render_sections`, `tests/test_numbers.py::test_number_check`.
 
-**Step 6.4: README.** `README.md`: a 1 paragraph summary, a mermaid architecture diagram,
-the headline eval table generated from `eval_summary.csv`, the scale result, limitations
-(including N = 1 per question and the baseline being given the definitions in writing),
-and how to run it. Test `tests/test_readme.py::test_readme_numbers_match_csvs`. Review
-evidence: the generated table and the CSV rows it came from.
+**Step 6.1: summary outputs.** `scripts/build_summary.py`, run after `build_canonical.py`,
+writes `outputs/data_summary.csv` (`rmbsq/eval/summary.py::data_summary`, with the step 2.6
+comparison moved into `rmbsq/canonical/truth_check.py`), `outputs/compiler_check.csv`
+(`compiler_check`: the 15 compiler gold specs and the 34 eval answer items, by the step 3.3
+and 3.5 rules) and `outputs/trap_effects.csv` (`rmbsq/eval/traps.py`, gold through the
+compiler and naive by SQL, including the dropped compounding trap). Full tests in
+`tests/test_summary.py`: `test_data_summary_values`, `test_compiler_check`,
+`test_trap_effects`.
 
-**Step 6.5: CI.** `.github/workflows/ci.yml`: the suite offline on push, plus
-`pytest -m full`. CI reads the committed `data/raw/`; the `full` regeneration test of
-step 1.6 also proves the generator reproduces `MANIFEST.json` (O-24). The 7.5 neutrality
-grep excludes `instructions/` and `.github/` (O-2). No test; the evidence is the link to
-the green Actions run (O-25). Review evidence: the workflow file and that link.
+**Step 6.2: claims.** `rmbsq/deliverable/claims.py::build_claims(eval_recorded) ->
+pd.DataFrame` writes `deliverable/claims.csv` (`claim_id, value, display, source_file,
+source_rule`); the eval claims exist only in the recorded state. Test
+`tests/test_claims.py::test_claims_pending`.
+
+**Step 6.3: figures and worked example.** `scripts/make_figures.py` (drawing code in
+`rmbsq/deliverable/figures.py`) builds `outputs/arrears_90p_by_vintage.csv` through
+`compile` and `execute` (O-32 (a)), then `outputs/figures/arrears_90p_by_vintage.png` and
+`scale_benchmark.png`, and `eval_accuracy.png` in the recorded state only (deleted when
+pending). The kickoff's `cpr_by_city.png` is dropped, as no document uses it.
+`rmbsq/deliverable/examples.py` writes `outputs/worked_example.md` (eval item Q11's gold
+spec through the compiler, no LLM) and, in the recorded state only,
+`outputs/transcripts/01_answer.md`, `02_clarify.md` and `03_unsupported.md` (Q11, Q35 and
+Q39, replayed). Test `tests/test_figures.py::test_figures_deterministic`.
+
+**Step 6.4: documents.** `scripts/build_writeup.py` (with `rmbsq/deliverable/writeup.py`)
+renders `README.md` and `docs/DESIGN_RESPONSE.md` and runs the number check on both. The
+`eval_table` block is generated from `eval_summary.csv`. `docs/DESIGN_NOTE.md` is replaced
+by `docs/DESIGN_RESPONSE.md`, and `tests/test_readme.py` by `tests/test_documents.py`:
+`test_documents_current`, `test_documents_numbers_explained` and
+`test_recorded_state_renders` (a constructed `eval_summary.csv` with made-up k values).
+
+**Step 6.5: CI.** `.github/workflows/ci.yml`: on push and pull request to main,
+`ubuntu-latest`, Python 3.12 through `astral-sh/setup-uv`, then `uv venv`,
+`uv pip sync requirements-lock.txt`, `uv pip install -e . --no-deps`, `pytest -q` and
+`pytest -q -m full`. No secrets. CI reads the committed `data/raw/`; the `full`
+regeneration test of step 1.6 also proves the generator reproduces `MANIFEST.json`
+(O-24). The 7.5 neutrality grep excludes `instructions/` and `.github/` (O-2). Review
+evidence: the Actions run URL and result (O-25).
+
+**Step 6.6: plan.** This section, updated for instruction 06.
 
 ## Section 7: send pack (`deliverable/`)
 
