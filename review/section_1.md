@@ -1489,3 +1489,162 @@ for c in ["opening_balance", "scheduled_principal", "curtailment", "closing_bala
 print("issue_balance", np.abs(deals.set_index("deal_id")["issue_balance"] - pd.Series(ib)).max())
 print("scalar reference matches")
 ```
+
+## Completion: instruction 01b
+
+- Instruction file: `instructions/01b_section_1_completion.md`
+- Outcome: complete. Last step reached: 1.9. Stop reason: none. The instruction 01b B.2
+  cross-check (rule 4) matched on every item.
+
+Commits, oldest last:
+
+```
+8435799 step 1.9: recalibrated full profile (instruction 01b B.2), every band passes
+7c096b2 step 1.8: HPI rounded to round_dp = 6 after the full-precision recursion
+6c8932f step 1.7: hardship_entry panel column and amended hardship spell test
+```
+
+### Steps
+
+- **1.7 Hardship entry column.** `rmbsq/synth/simulate.py` gains `hardship_entry` (the
+  E.5 `enter` mask) after `hardship_flag` in `PANEL_COLUMNS`. The trustee writers pick
+  their columns explicitly, so it is not in any raw file. `test_hardship_spell_lengths`
+  is amended per B.1, with the spell split in a helper `hardship_spells`. `PLAN.md`
+  steps 1.4 and 2.3 (B.1, B.3) and `docs/CONVENTIONS_RESOLVED.md` (G8, S2) are updated,
+  and `PLAN.md` is committed.
+  - Deviation: the hardship test frame moves from D001 (orig 2018-06) to D050 (orig
+    2022-06, issue 2023-11). On D001 the issue reset falls before the window. Only 11 of
+    50 loans had an entry row as their first emitted row, so for the other 39 the first
+    spell starts before the window and could not "start on an entry row". B.1 excludes
+    only a cut last spell, not a cut first one. On D050 the E.2 issue reset falls inside
+    the window, so all 50 loans start on an entry row and every B.1 assertion holds as
+    written.
+- **1.8 HPI rounding.** `[hpi] round_dp = 6`. `hpi_unrounded` runs the recursion at full
+  precision, and `hpi_matrix` returns `numpy.round(hpi, cfg.hpi.round_dp)`. `build_hpi`,
+  and through it `simulate` and `hpi.parquet`, use the rounded matrix. New test
+  `test_hpi_rounded`: the rounded matrix equals `numpy.round` of the unrounded one, the
+  frame holds the same values, and rounding again changes nothing (at most 6 dp).
+- **1.9 Recalibrated full profile.** B.2 is applied to `config.toml` (a0 −6.3, a_shock
+  1.5, shock_lookback_months 24). `data/raw/` was deleted and regenerated, along with
+  `outputs/pool_monthly_truth.csv` and `outputs/calibration.csv`. The new run writes the
+  same 53 hashed files as before, so no raw file needed removing. 52 changed; only
+  `cash_rate.parquet` is byte-identical.
+
+### Evidence (instruction 01b D)
+
+Items 1 to 7. The "match" columns apply the B.2 rule: exact for the row and exit counts,
+the called deal list, call months, the peak month and the small-profile counts; relative
+1e-6 for float statistics. The yearly table is compared at the 2 dp B.2 prints.
+
+```
+##### 1. outputs/calibration.csv with the instruction 01b B.2 expected values (exact for counts and month, rel 1e-6 for floats)
+                 stat         value       band_lo       band_hi  pass  expected_01b  match  rel_diff
+0                rows        773336        700000       1600000  True        773336   True          
+1     arrears_90p_min  0.0011987201  0.0010000000  0.0250000000  True  0.0011987201   True  0.00e+00
+2     arrears_90p_max  0.0153861877  0.0010000000  0.0250000000  True  0.0153861877   True  0.00e+00
+3  arrears_peak_month       2024-08       2023-06       2025-06  True       2024-08   True          
+4           cpr12_min  0.1685765743  0.0800000000  0.3500000000  True  0.1685765743   True  0.00e+00
+5           cpr12_max  0.1875279271  0.0800000000  0.3500000000  True  0.1875279271   True  0.00e+00
+6   fixed_cliff_ratio  3.5742985933  2.0000000000                True  3.5742985933   True  0.00e+00
+7        deals_called            17             3                True            17   True          
+8      b_deals_called             7             3                True             7   True          
+
+##### 2. called deals (full profile) beside the B.2 list
+   deal_id originator trustee_format call_month expected_01b  match
+0     D001       HARB              A    2025-11      2025-11   True
+1     D002        KOO              A    2025-03      2025-03   True
+2     D003        WAT              A    2025-07      2025-07   True
+3     D004        CST              B    2025-11      2025-11   True
+4     D005        RED              B    2025-04      2025-04   True
+5     D006       HARB              A    2025-04      2025-04   True
+6     D007        KOO              A    2025-11      2025-11   True
+7     D008        WAT              A    2026-02      2026-02   True
+8     D009        CST              B    2026-03      2026-03   True
+9     D010        RED              B    2025-12      2025-12   True
+10    D011       HARB              A    2026-09      2026-09   True
+11    D012        KOO              A    2026-06      2026-06   True
+12    D013        WAT              A    2025-12      2025-12   True
+13    D014        CST              B    2026-02      2026-02   True
+14    D015        RED              B    2026-06      2026-06   True
+15    D017        KOO              A    2026-02      2026-02   True
+16    D020        RED              B    2026-04      2026-04   True
+format B called: ['D004', 'D005', 'D009', 'D010', 'D014', 'D015', 'D020']  expected: ['D004', 'D005', 'D009', 'D010', 'D014', 'D015', 'D020']
+
+##### 3a. exits by reason (full profile) beside B.2
+             count  expected_01b  match
+prepaid      11566         11566   True
+called        2542          2542   True
+repurchased    376           376   True
+defaulted      346           346   True
+
+##### 3b. small profile counts beside B.2
+rows 12734 (expected 12734)
+called deals {'D001': '2024-10', 'D002': '2025-12', 'D003': '2025-12', 'D006': '2026-05'} (expected {'D001': '2024-10', 'D002': '2025-12', 'D003': '2025-12', 'D006': '2026-05'})
+hardship rows 110 (expected 110)
+
+##### 4. outputs/pool_monthly_truth.csv, selected rows
+     period  arrears_30p_bal  arrears_90p_bal  hardship_share_bal          cpr          cdr  wa_indexed_ltv         balance_total
+0   2021-10     0.0036242084     0.0018019773        0.0087918290 0.1881004253 0.0000000000    0.5592228180 6239242545.9200010300
+12  2022-10     0.0047228541     0.0027821292        0.0089983152 0.1717995716 0.0000000000    0.5637029935 7640676495.0600004196
+24  2023-10     0.0163247491     0.0100492869        0.0093440403 0.1596071352 0.0034319395    0.5742294030 8771410918.0199985504
+34  2024-08     0.0208954765     0.0153861877        0.0092267150 0.1790806254 0.0105177186    0.5349841151 7582470797.4800004959
+48  2025-10     0.0092481322     0.0056715214        0.0099589884 0.2040552885 0.0024021725    0.4892010565 5511780647.2200002670
+59  2026-09     0.0066313916     0.0047055595        0.0088981668 0.1900242660 0.0003573804    0.4647222207 3683023457.0000000000
+
+##### 5. pool arrears_90p_bal, mean of monthly values by year, beside B.2
+      mean_pct  rounded_2dp  expected_01b_pct  match
+2021    0.1700         0.17              0.17   True
+2022    0.1947         0.19              0.19   True
+2023    0.6903         0.69              0.69   True
+2024    1.3309         1.33              1.33   True
+2025    0.7768         0.78              0.78   True
+2026    0.5651         0.57              0.57   True
+
+##### 6. test_hardship_spell_lengths frame (D050, 50 loans, orig 2022-06, p_hardship 1, p_repurchase 0): spells by length
+kind    checked  last, cut by window end (excluded)  All
+length                                                  
+1             0                                  10   10
+2             0                                  16   16
+3            80                                  12   92
+4            95                                   3   98
+5            77                                   5   82
+6           101                                   4  105
+All         353                                  50  403
+checked spells starting on an entry row: 353 of 353
+
+##### 7. manifest and size
+MANIFEST entries: 53; files under data/raw incl. MANIFEST: 54
+total size of data/raw: 28383386 bytes = 28.38 MB
+
+##### cross-check result
+MISSES: none
+```
+
+Item 7, full generation runtime: `python scripts/generate_data.py --profile full --out
+data/raw` printed `profile full: 773336 rows, raw files in 15.6 s, total 16.5 s` (wall
+clock 17.9 s by `time`).
+
+Item 8, fresh clone. Clone into a short temp path, install from the lock file, and run
+both pytest commands. The `+ <package>` lines and the uv hardlink warning are left out.
+
+```
+$ git clone "<repo>" %LOCALAPPDATA%\Temp\rq1b && cd rq1b
+$ git log --oneline -1
+8435799 step 1.9: recalibrated full profile (instruction 01b B.2), every band passes
+$ uv venv --python 3.12 .venv
+Using CPython 3.12.13
+Creating virtual environment at: .venv
+Activate with: .venv\Scripts\activate
+$ uv pip sync --python .venv requirements-lock.txt
+Resolved 44 packages in 515ms
+Installed 44 packages in 8.24s
+$ .venv/Scripts/python -m pytest -q
+.......................................                                  [100%]
+39 passed, 2 deselected in 3.38s
+$ .venv/Scripts/python -m pytest -q -m full
+..                                                                       [100%]
+2 passed, 39 deselected in 13.96s
+```
+
+The working copy gives the same counts: 39 passed (2 deselected) and 2 passed (39
+deselected). The Linux rerun of the `full` tests is left to chat Claude's review (B.4).
