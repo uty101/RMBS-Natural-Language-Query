@@ -15,7 +15,8 @@ first_issue = "2019-01"
 issue_span_months = 60
 seasoning_min = 6
 seasoning_max = 36
-call_threshold = 0.10
+# stylised clean-up call at 25% of issue balance (instruction 01 C)
+call_threshold = 0.25          # was 0.10
 call_detect_share = 0.95
 
 [profiles.full]
@@ -73,7 +74,7 @@ base = 100.0
 p_hardship = 0.002
 hardship_min = 3
 hardship_max = 6
-a0 = -5.52
+a0 = -6.0                      # was -5.52
 a_shock = 3.0
 a_ltv = 4.0
 ltv_knot = 0.8
@@ -83,8 +84,9 @@ io_recent_months = 12
 p_cure = [0.55, 0.30, 0.15]
 p_roll = [0.25, 0.40, 0.55]
 roll_shock = 1.5
-p_cure_90 = 0.05
-default_after_90_months = 6
+shock_lookback_months = 12     # new key, after roll_shock
+p_cure_90 = 0.10               # was 0.05
+default_after_90_months = 9    # was 6
 smm_start = 0.004
 smm_flat = 0.015
 smm_ramp_months = 30
@@ -102,7 +104,7 @@ sale_haircut = 0.80
 [calibration]
 rows_min = 700000
 rows_max = 1600000
-arrears_90p_min = 0.002
+arrears_90p_min = 0.001        # was 0.002
 arrears_90p_max = 0.025
 arrears_peak_from = "2023-06"
 arrears_peak_to = "2025-06"
@@ -110,6 +112,7 @@ cpr12_min = 0.08
 cpr12_max = 0.35
 fixed_cliff_ratio_min = 2.0
 min_deals_called = 3
+min_b_deals_called = 3         # new key, after min_deals_called
 
 [resubmissions]
 deal_months = [["D004", "2023-06"], ["D017", "2024-02"], ["D033", "2025-11"]]

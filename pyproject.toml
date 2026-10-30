@@ -35,7 +35,7 @@ include = ["rmbsq*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--disable-socket"
+addopts = "--disable-socket -m \"not full\""
 markers = [
-    "calibration: reads the full generated profile (kickoff Section 9, step 1.6)",
+    "full: reads or regenerates the full profile (instruction 01, O-5); run with pytest -m full",
 ]
