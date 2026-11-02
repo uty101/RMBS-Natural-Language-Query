@@ -1,31 +1,18 @@
 # Open decisions
 
-Raised in session 6 (`instructions/06_section_6.md`). Evidence is in
-`review/section_6.md`. O-40, O-41 and O-42 were all confirmed as (a) by instruction 06 A.
+Raised in session 7 (`instructions/07_section_7.md`). Evidence is in
+`review/section_7.md`. O-43 and O-44 were both confirmed as (a) by instruction 07 A.
 
-## O-43. Step 6.6: `PLAN.md` Section 7 and its header predate instruction 06
+## O-45. Step 7.4: the neutrality test reads `data/raw/`
 
-Step 6.6 updates `PLAN.md` Section 6 only. The header (module homes) and Section 7 still
-name things that instruction 06 built differently:
+Instruction 07 E says `test_no_banned_words` reads every text file from `git ls-files`
+outside `instructions/` and `.github/`. That includes the committed raw CSVs under
+`data/raw/`. CLAUDE.md rule 8 (kickoff 1.4) says tests never read the full raw data,
+except the tests marked `full`.
 
-| | `PLAN.md` says | instruction 06 built |
-|---|---|---|
-| claims | `load_claims(path)` | `build_claims(eval_recorded)` |
-| claims columns | `source_row_filter` | `display` and `source_rule` |
-| render | `render_markdown(template, claims)` | `render(template_text, claims, blocks, eval_recorded)` |
-| claims test | `tests/test_claims.py::test_claims_recompute` | `tests/test_claims.py::test_claims_pending` |
+The instruction file has precedence (rule 13), so the test follows E as written. It is not
+marked `full`, so it runs in the default suite. It takes about 1 s locally.
 
-Also, the pending README, written by chat Claude, says `build_writeup.py` regenerates
-"the PDFs", but the PDFs are built in Section 7.
-
-- (a) Leave Section 7 and the header for instruction 07 to replace, and add the PDF build
-  to `build_writeup.py` in Section 7. **This is what is done.**
-- (b) Update Section 7 and the header now, to the names instruction 06 built.
-
-## O-44. Step 6.2: the `pp1` display string
-
-Instruction 06 D lists the format `pp1` as "percentage points with 1 dp", but no claim
-uses it, and its exact string (unit, spacing) isn't given.
-
-- (a) Leave it unimplemented until a claim needs it. **This is what is done.**
-- (b) Implement it now as the value × 100 with 1 dp, then " pp", for example `3.2 pp`.
+- (a) Keep it as written: the default-suite test reads `data/raw/` as text for the phrase
+  search only. **This is what is done.**
+- (b) Skip `data/raw/` in the default test, and search it in a second test marked `full`.
