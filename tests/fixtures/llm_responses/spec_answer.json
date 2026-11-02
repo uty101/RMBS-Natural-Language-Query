@@ -5,22 +5,11 @@
  "model": "claude-sonnet-5-5",
  "content": [
   {
-   "type": "tool_use",
-   "id": "toolu_fixture_spec_answer",
-   "name": "submit_spec",
-   "input": {
-    "intent": "answer",
-    "metrics": [
-     "balance_total",
-     "loan_count"
-    ],
-    "group_by": [
-     "originator"
-    ]
-   }
+   "type": "text",
+   "text": "{\"intent\": \"answer\", \"metrics\": [\"balance_total\", \"loan_count\"], \"group_by\": [\"originator\"]}"
   }
  ],
- "stop_reason": "tool_use",
+ "stop_reason": "end_turn",
  "stop_sequence": null,
  "usage": {
   "input_tokens": 3100,

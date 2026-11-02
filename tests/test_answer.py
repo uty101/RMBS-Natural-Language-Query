@@ -10,7 +10,8 @@ from rmbsq.db import connect_readonly
 from rmbsq.llm.answer import answer
 from rmbsq.llm.client import LLMClient
 from rmbsq.llm.narrate import narrate_message, narrate_system
-from rmbsq.llm.spec_agent import TOOL_CHOICE, render_spec_prompt, spec_tool
+from rmbsq.llm.spec_agent import render_spec_prompt
+from rmbsq.llm.wire import output_config, spec_wire_schema
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.format import format_table
 from rmbsq.semantic.spec import QuerySpec
@@ -29,7 +30,7 @@ def catalog(small_db):
 
 def seed_spec(client, cfg, catalog, question, fixture):
     seed(client, render_spec_prompt(catalog, cfg), [{"role": "user", "content": question}],
-         [spec_tool()], TOOL_CHOICE, fixture)
+         output_config(spec_wire_schema(catalog)), fixture)
 
 
 def run(cfg, catalog, small_db, client, question):
@@ -47,7 +48,7 @@ def test_answer_end_to_end_replay(cfg, catalog, small_db, tmp_path):
     spec = QuerySpec.model_validate(GOLD["S02"]["spec"])
     seed(client, narrate_system(cfg),
          [{"role": "user", "content": narrate_message(QUESTION, spec, format_table(gold, catalog), cfg)}],
-         [], None, "narrate_s02")
+         None, "narrate_s02")
 
     result = run(cfg, catalog, small_db, client, QUESTION)
     assert result.spec_valid and result.spec == spec and result.route == "agg"

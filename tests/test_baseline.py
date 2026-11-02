@@ -1,14 +1,15 @@
 """Step 4.5: the free text-to-SQL baseline (instruction 04 G)."""
 
 import dataclasses
+import json
 import time
 
 import pytest
 
 from rmbsq.db import connect_readonly
-from rmbsq.llm.baseline import (TOOL, TOOL_CHOICE, BaselineError, baseline_message, baseline_sql, baseline_system,
-                                run_baseline_sql)
+from rmbsq.llm.baseline import BaselineError, baseline_message, baseline_sql, baseline_system, run_baseline_sql
 from rmbsq.llm.client import LLMClient
+from rmbsq.llm.wire import BASELINE_WIRE_SCHEMA, output_config
 from tests.llm_helpers import response, seed
 
 QUESTION = "What is the balance by originator now?"
@@ -18,14 +19,18 @@ COLUMNS = ["originator", "period_label", "balance_total"]
 def ask(cfg, tmp_path, fixture: str) -> str:
     client = LLMClient(cfg, cache_dir=tmp_path)
     seed(client, baseline_system(cfg), [{"role": "user", "content": baseline_message(QUESTION, COLUMNS)}],
-         [TOOL], TOOL_CHOICE, fixture)
+         output_config(BASELINE_WIRE_SCHEMA), fixture)
     return baseline_sql(QUESTION, COLUMNS, client, cfg)
+
+
+def fixture_sql() -> str:
+    return json.loads(response("baseline_sql")["content"][0]["text"])["sql"]
 
 
 def test_baseline_parse(cfg, tmp_path):
     assert baseline_message(QUESTION, COLUMNS) == (
         "What is the balance by originator now?\n\nOutput columns, in order: originator, period_label, balance_total")
-    assert ask(cfg, tmp_path, "baseline_sql") == response("baseline_sql")["content"][0]["input"]["sql"]
+    assert ask(cfg, tmp_path, "baseline_sql") == fixture_sql()
     assert ask(cfg, tmp_path / "empty", "baseline_empty") == ""
     assert "{{" not in baseline_system(cfg)
 
@@ -58,7 +63,7 @@ def test_baseline_cannot_write(cfg, small_db, tmp_path):
 def test_baseline_runs_select(cfg, small_db):
     con = connect_readonly(small_db)
     try:
-        df = run_baseline_sql(response("baseline_sql")["content"][0]["input"]["sql"], con, cfg)
+        df = run_baseline_sql(fixture_sql(), con, cfg)
         assert run_baseline_sql("", con, cfg) is None
     finally:
         con.close()

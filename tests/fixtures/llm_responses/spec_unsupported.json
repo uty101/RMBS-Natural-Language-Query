@@ -5,16 +5,11 @@
  "model": "claude-sonnet-5-5",
  "content": [
   {
-   "type": "tool_use",
-   "id": "toolu_fixture_spec_unsupported",
-   "name": "submit_spec",
-   "input": {
-    "intent": "unsupported",
-    "unsupported_reason": "Borrower income is not in the data."
-   }
+   "type": "text",
+   "text": "{\"intent\": \"unsupported\", \"unsupported_reason\": \"Borrower income is not in the data.\"}"
   }
  ],
- "stop_reason": "tool_use",
+ "stop_reason": "end_turn",
  "stop_sequence": null,
  "usage": {
   "input_tokens": 3100,

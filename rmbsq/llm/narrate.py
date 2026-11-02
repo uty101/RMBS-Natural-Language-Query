@@ -35,7 +35,7 @@ def narrate_message(question: str, spec, display_table, cfg) -> str:
 def narrate(question: str, spec, display_table, client, cfg, catalog) -> tuple[str, bool, list[str]]:
     response = client.call(narrate_system(cfg), [{"role": "user", "content": narrate_message(question, spec,
                                                                                             display_table, cfg)}],
-                           [], None)
+                           None)
     text = "".join(b["text"] for b in response.get("content", []) if b.get("type") == "text").strip()
     offending = number_guard(text, question, display_table, catalog)
     if offending:

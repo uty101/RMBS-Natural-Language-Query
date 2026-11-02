@@ -126,7 +126,7 @@ top_k = 3
 
 [llm]
 model = "claude-sonnet-5-5"
-max_tokens = 1024
+max_tokens = 4096
 narration_max_words = 120
 narration_max_rows = 50
 baseline_timeout_s = 30

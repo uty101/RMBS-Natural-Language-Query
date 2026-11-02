@@ -5,15 +5,11 @@
  "model": "claude-sonnet-5-5",
  "content": [
   {
-   "type": "tool_use",
-   "id": "toolu_fixture_baseline_empty",
-   "name": "submit_sql",
-   "input": {
-    "sql": ""
-   }
+   "type": "text",
+   "text": "{\"sql\": \"\"}"
   }
  ],
- "stop_reason": "tool_use",
+ "stop_reason": "end_turn",
  "stop_sequence": null,
  "usage": {
   "input_tokens": 2600,

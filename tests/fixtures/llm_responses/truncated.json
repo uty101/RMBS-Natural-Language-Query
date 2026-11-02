@@ -1,0 +1,23 @@
+{
+ "id": "msg_fixture_truncated",
+ "type": "message",
+ "role": "assistant",
+ "model": "claude-sonnet-5-5",
+ "content": [
+  {
+   "type": "thinking",
+   "thinking": "The question asks for",
+   "signature": "sig_fixture_truncated"
+  },
+  {
+   "type": "text",
+   "text": "{\"intent\": \"answer\", \"metrics\": [\"bal"
+  }
+ ],
+ "stop_reason": "max_tokens",
+ "stop_sequence": null,
+ "usage": {
+  "input_tokens": 3100,
+  "output_tokens": 4096
+ }
+}

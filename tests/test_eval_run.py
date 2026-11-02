@@ -17,12 +17,11 @@ import pytest
 from rmbsq.db import connect_readonly
 from rmbsq.eval.report import RESULT_COLUMNS, SUMMARY_COLUMNS, TRAP_COLUMNS
 from rmbsq.eval.run import load_items, run_eval
-from rmbsq.llm.baseline import TOOL as SQL_TOOL
-from rmbsq.llm.baseline import TOOL_CHOICE as SQL_CHOICE
 from rmbsq.llm.baseline import baseline_message, baseline_system
 from rmbsq.llm.client import LLMClient
 from rmbsq.llm.narrate import narrate_message, narrate_system
-from rmbsq.llm.spec_agent import TOOL_CHOICE, render_spec_prompt, spec_tool
+from rmbsq.llm.spec_agent import render_spec_prompt
+from rmbsq.llm.wire import BASELINE_WIRE_SCHEMA, output_config, spec_wire_schema
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.compiler import compile, execute
 from rmbsq.semantic.format import format_table
@@ -35,10 +34,10 @@ BAD_SQL = "SELECT * FROM no_such_table"
 FLOAT = re.compile(r"^-?\d+\.\d{10}$")
 
 
-def tool_response(name: str, tool_input: dict, input_tokens: int, output_tokens: int) -> dict:
+def json_response(name: str, obj: dict, input_tokens: int, output_tokens: int) -> dict:
     return {"id": f"msg_{name}", "type": "message", "role": "assistant", "model": "claude-sonnet-5-5",
-            "content": [{"type": "tool_use", "id": f"toolu_{name}", "name": name, "input": tool_input}],
-            "stop_reason": "tool_use", "stop_sequence": None,
+            "content": [{"type": "text", "text": json.dumps(obj, ensure_ascii=False)}],
+            "stop_reason": "end_turn", "stop_sequence": None,
             "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens}}
 
 
@@ -68,21 +67,22 @@ def cache(cfg, catalog, q02_display, tmp_path):
     """The 6 spec and baseline responses and the 1 narration for Q02, Q35 and Q39."""
     client = LLMClient(cfg, cache_dir=tmp_path / "cache")
     spec_prompt = render_spec_prompt(catalog, cfg)
+    spec_output = output_config(spec_wire_schema(catalog))
     q02, q35, q39 = THREE
 
-    def spec_call(item, tool_input, latency):
-        seed(client, spec_prompt, [{"role": "user", "content": item.question}], [spec_tool()], TOOL_CHOICE,
-             tool_response("submit_spec", tool_input, 3000, 100), latency)
+    def spec_call(item, obj, latency):
+        seed(client, spec_prompt, [{"role": "user", "content": item.question}], spec_output,
+             json_response("spec", obj, 3000, 100), latency)
 
     def sql_call(item, sql, latency):
         cols = list(item.output_columns) if item.output_columns else ["period_label"]
         seed(client, baseline_system(cfg), [{"role": "user", "content": baseline_message(item.question, cols)}],
-             [SQL_TOOL], SQL_CHOICE, tool_response("submit_sql", {"sql": sql}, 2000, 50), latency)
+             output_config(BASELINE_WIRE_SCHEMA), json_response("sql", {"sql": sql}, 2000, 50), latency)
 
     spec_call(q02, q02.gold_spec.model_dump(mode="json"), 1.5)
     balance = q02_display["balance_total"].iloc[0]
     seed(client, narrate_system(cfg),
-         [{"role": "user", "content": narrate_message(q02.question, q02.gold_spec, q02_display, cfg)}], [], None,
+         [{"role": "user", "content": narrate_message(q02.question, q02.gold_spec, q02_display, cfg)}], None,
          text_response(f"The pool's outstanding balance at 2026-09 was {balance}.", 800, 30), 0.25)
     spec_call(q35, {"intent": "clarify", "clarify": {"question": "Which arrears threshold do you mean?",
                                                       "options": ["30+ days", "90+ days"]}}, 1.25)

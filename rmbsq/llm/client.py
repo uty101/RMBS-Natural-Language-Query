@@ -60,14 +60,14 @@ class LLMClient:
         self.calls: list[dict] = []
         self._sdk = None
 
-    def build_request(self, system: str, messages: list, tools: list, tool_choice) -> dict:
-        """C.1."""
+    def build_request(self, system: str, messages: list, output_config: dict | None) -> dict:
+        """C.1, as amended by instruction 08c C.1."""
         llm = self.cfg.llm
         return {"model": llm.model, "max_tokens": llm.max_tokens,
-                "system": system, "messages": messages, "tools": tools, "tool_choice": tool_choice}
+                "system": system, "messages": messages, "output_config": output_config}
 
-    def call(self, system: str, messages: list, tools: list, tool_choice) -> dict:
-        request = self.build_request(system, messages, tools, tool_choice)
+    def call(self, system: str, messages: list, output_config: dict | None) -> dict:
+        request = self.build_request(system, messages, output_config)
         key = request_key(request)
         path = self.cache_dir / f"{key}.json"
         if path.exists():
@@ -91,8 +91,8 @@ class LLMClient:
         if self._sdk is None:
             # retries are counted here (C.4), so the SDK's own are off
             self._sdk = anthropic.Anthropic(max_retries=0)
-        # a request without tools (narration) sends neither tools nor tool_choice
-        kwargs = {k: v for k, v in request.items() if not (k in ("tools", "tool_choice") and not v)}
+        # narration has no output_config, and a null one isn't sent (08c C.1)
+        kwargs = {k: v for k, v in request.items() if not (k == "output_config" and v is None)}
         for attempt in range(len(RETRY_WAITS) + 1):
             try:
                 t0 = time.perf_counter()

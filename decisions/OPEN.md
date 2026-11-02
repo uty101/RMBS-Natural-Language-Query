@@ -43,6 +43,10 @@ Raised in session 8 (`instructions/08_record_eval.md`). Evidence is in
 
 ## O-47. Step 8.1: the model rejects a forced `tool_choice`
 
+**Decided: (b), by instruction 08c A.** Sonnet 5.5 rejects forced tool use, and (a) would
+let the model answer in text, which would bias the eval. Both calls use structured output
+from step 8c.1.
+
 Raised in session 8b (`instructions/08b_drop_temperature.md`). Evidence is in
 `review/section_8.md`.
 

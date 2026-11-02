@@ -5,22 +5,11 @@
  "model": "claude-sonnet-5-5",
  "content": [
   {
-   "type": "tool_use",
-   "id": "toolu_fixture_spec_clarify",
-   "name": "submit_spec",
-   "input": {
-    "intent": "clarify",
-    "clarify": {
-     "question": "Which arrears threshold do you mean?",
-     "options": [
-      "30+ days",
-      "90+ days"
-     ]
-    }
-   }
+   "type": "text",
+   "text": "{\"intent\": \"clarify\", \"clarify\": {\"question\": \"Which arrears threshold do you mean?\", \"options\": [\"30+ days\", \"90+ days\"]}}"
   }
  ],
- "stop_reason": "tool_use",
+ "stop_reason": "end_turn",
  "stop_sequence": null,
  "usage": {
   "input_tokens": 3100,

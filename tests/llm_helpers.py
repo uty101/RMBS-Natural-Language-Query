@@ -18,10 +18,10 @@ def response(name: str) -> dict:
     return json.loads((RESPONSES / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def seed(client, system: str, messages: list, tools: list, tool_choice, resp: dict | str,
+def seed(client, system: str, messages: list, output_config: dict | None, resp: dict | str,
          latency_s: float = 1.234) -> str:
     resp = response(resp) if isinstance(resp, str) else resp
-    request = client.build_request(system, messages, tools, tool_choice)
+    request = client.build_request(system, messages, output_config)
     key = request_key(request)
     client.cache_dir.mkdir(parents=True, exist_ok=True)
     write_entry(client.cache_dir / f"{key}.json",

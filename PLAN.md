@@ -327,8 +327,9 @@ threads=4` raise; `SELECT` works; no file is created).
 
 **Step 4.1: cached client.** `rmbsq/llm/client.py`: `LLMClient(cfg, mode="replay",
 cache_dir=Path("data/llm_cache"))` with `.build_request(...)` and `.call(system,
-messages, tools, tool_choice) -> dict`. The request is `{model, max_tokens,
-system, messages, tools, tool_choice}`; its key `request_key(request)` is the SHA-256 hex
+messages, output_config) -> dict`. The request is `{model, max_tokens, system, messages,
+output_config}` (instruction 08c C.1; a null `output_config`, as for narration, is kept in
+the key and not sent), with `max_tokens` 4096 (08c C.2); its key `request_key(request)` is the SHA-256 hex
 of `json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` in
 UTF-8. The cache file `<key>.json` is `{key, request, response, latency_s}` written with
 sorted keys, indent 1 and a trailing LF, with no timestamp. `replay`: a miss raises
@@ -342,14 +343,18 @@ input_tokens, output_tokens}`. Tests in `tests/test_llm_client.py`: `test_key_st
 **Step 4.2: spec agent.** `rmbsq/llm/spec_agent.py`: `render_spec_prompt(catalog, cfg)`
 fills `n_deals` (rows of `dim_deal`), the window, `latest`, the metric and dimension
 tables in YAML order and 1 allowed-values line per dimension (deal_name adds the alias
-note); an unfilled placeholder raises. Tool `submit_spec` with
-`QuerySpec.model_json_schema()` inlined (no `$ref`, `$defs` or `title`), forced.
-`question_to_spec(question, client, catalog) -> tuple[QuerySpec, bool]`: a missing block
-or a validation error gives `unsupported` with `invalid spec from model: <first error, at
-most 200 chars>` and False. Tests in `tests/test_spec_agent.py`:
-`test_prompt_has_every_name`, `test_tool_schema_inlined`, `test_parse_fixture_answer`,
+note); an unfilled placeholder raises. Structured output in place of a forced tool
+(instruction 08c): `output_config` holds `spec_wire_schema(catalog)` from
+`rmbsq/llm/wire.py`, and `wire_to_spec` turns the reply into the `QuerySpec` dict.
+`question_to_spec(question, client, catalog) -> tuple[QuerySpec, bool]`: the first `text`
+block is parsed, `thinking` blocks ignored; a `max_tokens` or `refusal` stop, a missing text
+block, text that isn't JSON or a validation error gives `unsupported` with `invalid spec
+from model: <first error, at most 200 chars>` and False. Tests in
+`tests/test_spec_agent.py`: `test_prompt_has_every_name`, `test_parse_fixture_answer`,
 `test_parse_fixture_clarify`, `test_parse_fixture_unsupported`, `test_parse_invalid_spec`,
-`test_parse_missing_tool_block`.
+`test_parse_text_not_json`; in `tests/test_wire.py`: `test_wire_schema_supported`,
+`test_wire_to_spec`, `test_parse_thinking_then_text`, `test_parse_refusal`,
+`test_parse_truncated`.
 
 **Step 4.3: entity resolution.** `rmbsq/llm/resolve.py`: `deal_aliases(catalog)` (alias
 -> deal_name; `Harbour 19-1`, `HARB 19-1`, `HARB19-1` for HARB 2019-1) and
@@ -375,7 +380,9 @@ cases), `test_narrate_passes`, `test_narrate_trips_to_template`, `test_template_
 `test_truncation_flag`.
 
 **Step 4.5: baseline.** `rmbsq/llm/baseline.py`: `baseline_sql(question, output_columns,
-client, cfg) -> str` (tool `submit_sql`, forced; "" when the block is missing) and
+client, cfg) -> str` (structured output `BASELINE_WIRE_SCHEMA`, `{"sql": ...}`, instruction
+08c; an invalid response raises `BaselineResponseError`, which the eval records as intent
+`error` with the reason as error text, not a decline) and
 `run_baseline_sql(sql, con, cfg) -> pd.DataFrame | None` (None for "", a
 `threading.Timer(baseline_timeout_s, con.interrupt)`, `BaselineError` on any database
 error or interrupt). Tests in `tests/test_baseline.py`: `test_baseline_parse`,

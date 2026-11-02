@@ -1,8 +1,10 @@
 """Free text-to-SQL baseline (kickoff 6.10; instruction 04 G). Step 4.5.
 
-The model writes 1 DuckDB query through the forced tool `submit_sql`. The query runs on
-the locked read-only connection of `rmbsq.db`, and a `threading.Timer` interrupts it
-after `baseline_timeout_s`. An empty SQL string is a decline.
+The model writes 1 DuckDB query as structured output `{"sql": ...}` (instruction 08c B.3,
+C.3). The query runs on the locked read-only connection of `rmbsq.db`, and a
+`threading.Timer` interrupts it after `baseline_timeout_s`. An empty SQL string is a
+decline; an invalid response raises `BaselineResponseError`, which is an error, not a
+decline.
 """
 
 from __future__ import annotations
@@ -13,17 +15,18 @@ import duckdb
 import pandas as pd
 
 from rmbsq.llm.spec_agent import fill
+from rmbsq.llm.wire import BASELINE_WIRE_SCHEMA, InvalidResponse, output_config, response_json
 from rmbsq.semantic.catalog import ROOT
 
 PROMPT = ROOT / "prompts" / "baseline_system.md"
-TOOL_NAME = "submit_sql"
-TOOL = {"name": TOOL_NAME,
-        "input_schema": {"type": "object", "properties": {"sql": {"type": "string"}}, "required": ["sql"]}}
-TOOL_CHOICE = {"type": "tool", "name": TOOL_NAME}
 
 
 class BaselineError(Exception):
     pass
+
+
+class BaselineResponseError(Exception):
+    """08c C.3: the response held no valid `{"sql": ...}` object."""
 
 
 def baseline_system(cfg) -> str:
@@ -39,12 +42,11 @@ def baseline_message(question: str, output_columns: list[str]) -> str:
 def baseline_sql(question: str, output_columns: list[str], client, cfg) -> str:
     response = client.call(baseline_system(cfg),
                            [{"role": "user", "content": baseline_message(question, output_columns)}],
-                           [TOOL], TOOL_CHOICE)
-    block = next((b for b in response.get("content", [])
-                  if b.get("type") == "tool_use" and b.get("name") == TOOL_NAME), None)
-    if block is None:
-        return ""
-    return block["input"].get("sql", "")
+                           output_config(BASELINE_WIRE_SCHEMA))
+    try:
+        return response_json(response)["sql"]
+    except (InvalidResponse, KeyError) as err:
+        raise BaselineResponseError(f"invalid response from model: {err}") from err
 
 
 def run_baseline_sql(sql: str, con: duckdb.DuckDBPyConnection, cfg) -> pd.DataFrame | None:

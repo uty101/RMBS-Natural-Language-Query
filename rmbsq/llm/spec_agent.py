@@ -1,25 +1,23 @@
 """Question to QuerySpec call (kickoff 6.8; instruction 04 D). Step 4.2.
 
 `render_spec_prompt` fills `prompts/spec_system.md` from the catalogue and config (D.1).
-The single tool `submit_spec` takes `QuerySpec.model_json_schema()` with every `$ref`
-inlined and every `title` removed (D.2). `question_to_spec` validates the tool input and
-turns a missing block or an invalid spec into `unsupported` (D.3).
+The model replies with structured output in the wire schema of `rmbsq.llm.wire`
+(instruction 08c B, C). `question_to_spec` validates `QuerySpec(**wire_to_spec(obj))` and
+turns an invalid response or an invalid spec into `unsupported` (D.3, 08c C.3).
 """
 
 from __future__ import annotations
 
-import copy
 import re
 
 from pydantic import ValidationError
 
 from rmbsq.db import connect_readonly
+from rmbsq.llm.wire import InvalidResponse, output_config, response_json, spec_wire_schema, wire_to_spec
 from rmbsq.semantic.catalog import ROOT
 from rmbsq.semantic.spec import QuerySpec
 
 PROMPT = ROOT / "prompts" / "spec_system.md"
-TOOL_NAME = "submit_spec"
-TOOL_CHOICE = {"type": "tool", "name": TOOL_NAME}
 DEAL_ALIAS_NOTE = '(aliases such as "Harbour 19-1" or "HARB19-1" are also accepted)'  # D.1
 
 
@@ -62,28 +60,6 @@ def render_spec_prompt(catalog, cfg) -> str:
     })
 
 
-def _inline(node, defs: dict):
-    if isinstance(node, dict):
-        if "$ref" in node:
-            target = defs[node["$ref"].removeprefix("#/$defs/")]
-            return _inline({**copy.deepcopy(target), **{k: v for k, v in node.items() if k != "$ref"}}, defs)
-        return {k: _inline(v, defs) for k, v in node.items() if k not in ("title", "$defs")}
-    if isinstance(node, list):
-        return [_inline(v, defs) for v in node]
-    return node
-
-
-def spec_input_schema() -> dict:
-    """D.2: QuerySpec's JSON schema with `$ref` inlined, `$defs` and every `title` removed."""
-    schema = QuerySpec.model_json_schema()
-    return _inline(schema, schema.get("$defs", {}))
-
-
-def spec_tool() -> dict:
-    return {"name": TOOL_NAME, "description": "Submit the query spec for the question.",
-            "input_schema": spec_input_schema()}
-
-
 def _invalid(reason: str) -> QuerySpec:
     """D.3: the first error, at most 200 characters."""
     return QuerySpec(intent="unsupported", unsupported_reason=f"invalid spec from model: {reason[:200]}")
@@ -91,13 +67,13 @@ def _invalid(reason: str) -> QuerySpec:
 
 def question_to_spec(question: str, client, catalog) -> tuple[QuerySpec, bool]:
     response = client.call(render_spec_prompt(catalog, client.cfg), [{"role": "user", "content": question}],
-                           [spec_tool()], TOOL_CHOICE)
-    block = next((b for b in response.get("content", [])
-                  if b.get("type") == "tool_use" and b.get("name") == TOOL_NAME), None)
-    if block is None:
-        return _invalid(f"no {TOOL_NAME} tool call in the response"), False
+                           output_config(spec_wire_schema(catalog)))
     try:
-        return QuerySpec.model_validate(block["input"]), True
+        obj = response_json(response)
+    except InvalidResponse as err:
+        return _invalid(str(err)), False
+    try:
+        return QuerySpec.model_validate(wire_to_spec(obj)), True
     except ValidationError as err:
         first = err.errors()[0]
         loc = ".".join(str(p) for p in first["loc"])

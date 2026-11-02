@@ -41,7 +41,7 @@ def _narrate(cfg, catalog, tmp_path, display, fixture, spec=S02, question=QUESTI
         {"question": question, "spec": spec.model_dump(mode="json"),
          "table": {"columns": list(display.columns), "rows": display.values.tolist()}, "truncated": False},
         ensure_ascii=False, sort_keys=True)
-    seed(client, narrate_system(cfg), [{"role": "user", "content": message}], [], None, fixture)
+    seed(client, narrate_system(cfg), [{"role": "user", "content": message}], None, fixture)
     return narrate(question, spec, display, client, cfg, catalog)
 
 

@@ -5,21 +5,11 @@
  "model": "claude-sonnet-5-5",
  "content": [
   {
-   "type": "tool_use",
-   "id": "toolu_fixture_spec_four_metrics",
-   "name": "submit_spec",
-   "input": {
-    "intent": "answer",
-    "metrics": [
-     "cpr",
-     "cdr",
-     "smm_vol",
-     "loan_count"
-    ]
-   }
+   "type": "text",
+   "text": "{\"intent\": \"answer\", \"metrics\": [\"cpr\", \"cdr\", \"smm_vol\", \"loan_count\"]}"
   }
  ],
- "stop_reason": "tool_use",
+ "stop_reason": "end_turn",
  "stop_sequence": null,
  "usage": {
   "input_tokens": 3100,

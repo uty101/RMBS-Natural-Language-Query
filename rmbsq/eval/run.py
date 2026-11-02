@@ -26,7 +26,7 @@ from rmbsq.db import connect_readonly
 from rmbsq.eval.report import write_outputs
 from rmbsq.eval.score import score
 from rmbsq.llm.answer import answer
-from rmbsq.llm.baseline import BaselineError, baseline_sql, run_baseline_sql
+from rmbsq.llm.baseline import BaselineError, BaselineResponseError, baseline_sql, run_baseline_sql
 from rmbsq.llm.client import LLMClient
 from rmbsq.semantic.catalog import load_catalog
 from rmbsq.semantic.spec import QuerySpec
@@ -106,15 +106,20 @@ def run_baseline(items, client, con) -> pd.DataFrame:
     for item in items:
         first = len(client.calls)
         cols = list(item.output_columns) if item.output_columns else NON_ANSWER_COLUMNS
-        sql = baseline_sql(item.question, cols, client, client.cfg)
         result, error = None, ""
-        if sql == "":
-            intent = "decline"
+        try:
+            sql = baseline_sql(item.question, cols, client, client.cfg)
+        except BaselineResponseError as err:
+            # 08c C.3: an invalid response is an error, not a decline
+            sql, intent, error = "", "error", str(err)
         else:
-            try:
-                result, intent = run_baseline_sql(sql, con, client.cfg), "sql"
-            except BaselineError as err:
-                intent, error = "error", str(err)
+            if sql == "":
+                intent = "decline"
+            else:
+                try:
+                    result, intent = run_baseline_sql(sql, con, client.cfg), "sql"
+                except BaselineError as err:
+                    intent, error = "error", str(err)
         rows.append({
             "system": "baseline", "item_id": item.id, "intent": intent, "spec_valid": None, "spec": None,
             "sql": sql, "ran": result is not None, "result": result, "text": None, "guard_tripped": None,

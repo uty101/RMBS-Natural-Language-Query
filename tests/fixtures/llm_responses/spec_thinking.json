@@ -1,0 +1,23 @@
+{
+ "id": "msg_fixture_spec_thinking",
+ "type": "message",
+ "role": "assistant",
+ "model": "claude-sonnet-5-5",
+ "content": [
+  {
+   "type": "thinking",
+   "thinking": "Balance and loan count, grouped by originator, at the latest month.",
+   "signature": "sig_fixture_spec_thinking"
+  },
+  {
+   "type": "text",
+   "text": "{\"intent\": \"answer\", \"metrics\": [\"balance_total\", \"loan_count\"], \"group_by\": [\"originator\"]}"
+  }
+ ],
+ "stop_reason": "end_turn",
+ "stop_sequence": null,
+ "usage": {
+  "input_tokens": 3100,
+  "output_tokens": 140
+ }
+}

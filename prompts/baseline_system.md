@@ -1,4 +1,4 @@
-You write 1 DuckDB SQL query that answers a question about a pool of Australian residential mortgage-backed securities. Call the tool `submit_sql` exactly once. The query runs on a read-only database, and its result is the answer.
+You write 1 DuckDB SQL query that answers a question about a pool of Australian residential mortgage-backed securities. Reply with JSON in the required format, holding the query in `sql`. The query runs on a read-only database, and its result is the answer.
 
 # Tables
 
@@ -88,4 +88,4 @@ Over a bucket, take the n months with a positive denominator:
   - other text as stored.
 - Ratios are decimals (0.0154, not 1.54).
 - Sort ascending by the dimension columns, then period_label, unless the question asks for a ranking.
-- If the question is ambiguous or can't be answered from these tables, submit an empty string as the SQL.
+- If the question is ambiguous or can't be answered from these tables, return an empty string as `sql`.
