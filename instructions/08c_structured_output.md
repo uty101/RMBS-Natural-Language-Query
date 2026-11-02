@@ -141,10 +141,13 @@ Tests:
 
 Run `build_writeup.py` (still pending; nothing in the documents changes) and both pytest commands. Update `PLAN.md` steps 4.1, 4.2, 4.5 and `docs/CONVENTIONS_RESOLVED.md` N2, and mark O-47 decided (b). Commit as `step 8c.1: structured output in place of forced tools (O-47 b)`, with `PLAN.md` included.
 
-**8c.2 One live smoke call first.** With the key set, run `rmbsq ask "What is the 90+ arrears rate by balance for each state now?" --live --show-sql`.
+**8c.2 Smoke test all 3 request types first.** With the key set, make exactly 3 live calls before the full run:
 
-- If it fails at the API, stop and report the full error with the key redacted, before spending on the full run.
-- If it succeeds, put its output in the review.
-- The calls it records land in `data/llm_cache/` and are reused by the eval run if they match.
+1. `rmbsq ask "What is the 90+ arrears rate by balance for each state now?" --live --show-sql`. This covers the spec request and the narration request.
+2. 1 baseline request in record mode, for eval item Q11, through `baseline_sql` with Q11's `output_columns`. Then run the returned SQL with `run_baseline_sql`.
+
+- If any of the 3 fails at the API, or returns a reply that fails C.3 parsing, stop. Report the full error or reply, with the key redacted, before spending on the full run.
+- If all 3 succeed, put their outputs in the review.
+- The calls they record land in `data/llm_cache/` and are reused by the eval run if they match.
 
 **8c.3 Record.** Carry out instruction 08 B, from 8.1 to 8.6, exactly as written. Write the review as `review/section_8.md`, replacing the stopped version, and end with this status file.
