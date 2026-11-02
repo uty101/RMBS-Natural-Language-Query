@@ -1,4 +1,5 @@
-"""Steps 7.0 and 7.1: the results summary template and its blocks (instruction 07 C, G)."""
+"""Steps 7.0, 7.1 and 7.3: the results summary template, its blocks and the committed render
+(instruction 07 C, G)."""
 
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ import pandas as pd
 
 from rmbsq.deliverable.claims import build_claims
 from rmbsq.deliverable.writeup import (SUMMARY, blocks_for, check_documents, clarify_transcript,
-                                       render_documents, trap_table)
+                                       eval_recorded, render_documents, trap_table)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs"
@@ -51,3 +52,11 @@ def test_clarify_transcript_recorded(tmp_path):
     path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
     assert clarify_transcript(path) == ("    Which arrears threshold do you mean?\n"
                                         "    Options: 30+ days; 90+ days")
+
+
+def test_summary_current():
+    """Step 7.3: the committed results_summary.md is the render of the committed state."""
+    recorded = eval_recorded(OUT)
+    claims = build_claims(recorded, OUT, out=None)
+    docs = render_documents(claims, blocks_for(OUT, recorded), recorded, SUMMARY)
+    assert (ROOT / DOC).read_bytes() == docs[DOC].encode("utf-8")

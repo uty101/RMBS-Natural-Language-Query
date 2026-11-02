@@ -1,17 +1,22 @@
 """Step 6.4: the committed documents are current, every number in them is explained, and
-the recorded state renders (instruction 06 H, J 6.4)."""
+the recorded state renders (instruction 06 H, J 6.4). Step 7.3: the recorded state also
+builds both PDFs (instruction 07 G 7.3)."""
 
+import dataclasses
 import json
+import re
 import shutil
 from collections import Counter
 from pathlib import Path
 
 import pandas as pd
+from pypdf import PdfReader
 
 from rmbsq.config import load_config
 from rmbsq.deliverable.claims import build_claims
-from rmbsq.deliverable.writeup import (DOCUMENTS, blocks_for, check_documents, eval_recorded,
-                                       render_documents)
+from rmbsq.deliverable.figures import eval_figure
+from rmbsq.deliverable.writeup import (DOCUMENTS, SUMMARY, blocks_for, check_documents, eval_recorded,
+                                       render_documents, write_pdfs)
 from rmbsq.eval.report import SUMMARY_COLUMNS, write_table
 from rmbsq.eval.run import load_items
 from rmbsq.eval.score import wilson
@@ -93,3 +98,31 @@ def test_recorded_state_renders(tmp_path):
         assert "hasn't been recorded" not in text and "hasn't been run" not in text, doc
     assert "34 of 40 (85.0%" in docs["README.md"]
     assert check_documents(docs, claims, blocks, True) == {doc: [] for doc in DOCUMENTS}
+
+
+def build_recorded_pdfs(root: Path) -> tuple[dict, dict, dict]:
+    """The constructed recorded state under `root`: rendered documents, blocks and the PDF build."""
+    docs, claims, blocks = render_recorded(root / "outputs")
+    summary = render_documents(claims, blocks, True, SUMMARY)
+    assert check_documents(summary, claims, blocks, True) == {doc: [] for doc in SUMMARY}
+    eval_figure(root / "outputs")
+    cfg = dataclasses.replace(load_config(ROOT / "config.toml"), root=root)
+    return docs | summary, blocks, write_pdfs(docs | summary, cfg, root)
+
+
+def test_recorded_state_pdfs(tmp_path):
+    docs, blocks, pdfs = build_recorded_pdfs(tmp_path)
+    cfg = load_config(ROOT / "config.toml")
+    assert "{{" not in docs["deliverable/results_summary.md"]
+    assert pdfs["design_pages"] <= cfg.deliverable.design_max_pages
+    assert pdfs["summary_pages"] == cfg.deliverable.summary_max_pages
+    assert 3.5 <= pdfs["summary_image_height_cm"] <= 5.5
+    design, summary = pdfs["paths"]
+    assert len(PdfReader(design).pages) == pdfs["design_pages"]
+    assert len(PdfReader(summary).pages) == 1
+    text = re.sub(r"\s+", " ", " ".join(p.extract_text() for p in PdfReader(summary).pages))
+    for line in blocks["eval_table"].splitlines()[2:]:
+        for cell in line.strip("|").split("|"):
+            assert cell.strip() in text, cell
+    for line in blocks["clarify_transcript"].splitlines():
+        assert line.strip() in text, line

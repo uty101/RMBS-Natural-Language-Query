@@ -8,7 +8,10 @@
 4. The claims.
 5. README.md and docs/DESIGN_RESPONSE.md.
 6. The number check on both documents; any unexplained number fails the run.
-7. Prints the state and the files written.
+7. deliverable/results_summary.md, number-checked the same way (instruction 07 F).
+8. deliverable/Design_Response.pdf and deliverable/Results_Summary.pdf. A summary still
+   above 1 page at the smallest image height fails the run (instruction 07 D.3).
+9. Prints the state, the page counts, the summary image height and the files written.
 
 No network code, and no API key is needed: the transcripts replay from data/llm_cache/.
 """
@@ -25,7 +28,7 @@ from rmbsq.config import load_config  # noqa: E402
 from rmbsq.deliverable.claims import CLAIMS_CSV, build_claims  # noqa: E402
 from rmbsq.deliverable.examples import transcripts, worked_example  # noqa: E402
 from rmbsq.deliverable.writeup import (  # noqa: E402
-    blocks_for, check_documents, eval_recorded, render_documents, write_documents)
+    SUMMARY, blocks_for, check_documents, eval_recorded, render_documents, write_documents, write_pdfs)
 from rmbsq.eval.run import load_items  # noqa: E402
 from scripts import build_canonical, build_summary, make_figures  # noqa: E402
 
@@ -61,7 +64,28 @@ def main() -> int:
             print(f"UNEXPLAINED NUMBERS in {doc}: {nums}", file=sys.stderr)
         return 1
 
+    summary = render_documents(claims, blocks, recorded, SUMMARY)
+    written += write_documents(summary, ROOT)
+    bad = {doc: nums for doc, nums in check_documents(summary, claims, blocks, recorded).items() if nums}
+    if bad:
+        for doc, nums in bad.items():
+            print(f"UNEXPLAINED NUMBERS in {doc}: {nums}", file=sys.stderr)
+        return 1
+
+    cfg = load_config(ROOT / "config.toml")
+    pdfs = write_pdfs(docs | summary, cfg, ROOT)
+    written += pdfs["paths"]
     print(f"state: {'recorded' if recorded else 'pending'}")
+    print(f"Design_Response.pdf: {pdfs['design_pages']} pages (at most {cfg.deliverable.design_max_pages})")
+    print(f"Results_Summary.pdf: {pdfs['summary_pages']} pages (exactly {cfg.deliverable.summary_max_pages}), "
+          f"image height {pdfs['summary_image_height_cm']} cm")
+    if pdfs["design_pages"] > cfg.deliverable.design_max_pages:
+        print(f"STOP: Design_Response.pdf has {pdfs['design_pages']} pages", file=sys.stderr)
+        return 1
+    if pdfs["summary_pages"] != cfg.deliverable.summary_max_pages:
+        print(f"STOP: Results_Summary.pdf has {pdfs['summary_pages']} pages at "
+              f"{pdfs['summary_image_height_cm']} cm", file=sys.stderr)
+        return 1
     for path in written:
         print(Path(path).resolve().relative_to(ROOT).as_posix())
     return 0

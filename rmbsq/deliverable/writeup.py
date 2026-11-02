@@ -1,5 +1,6 @@
 """The README and the design response, rendered from the templates (instruction 06 B, E, H).
-Step 6.4. The results summary (instruction 07 C), steps 7.0 and 7.1.
+Step 6.4. The results summary (instruction 07 C), steps 7.0 and 7.1, and both PDFs
+(instruction 07 F), step 7.3.
 
 The eval is recorded when `outputs/eval_summary.csv` exists, and pending otherwise. The
 `eval_table` and `clarify_transcript` blocks are built only in the recorded state, and
@@ -17,12 +18,15 @@ import pandas as pd
 
 from rmbsq.deliverable.claims import FORMATS
 from rmbsq.deliverable.numbers import unexplained_numbers
+from rmbsq.deliverable.pdf import build_pdf, fit_summary
 from rmbsq.deliverable.render import names_used, render
 from rmbsq.semantic.catalog import ROOT
 
 TEMPLATES = ROOT / "templates"
 DOCUMENTS = {"README.md": "README.md.tmpl", "docs/DESIGN_RESPONSE.md": "DESIGN_RESPONSE.md.tmpl"}
 SUMMARY = {"deliverable/results_summary.md": "RESULTS_SUMMARY.md.tmpl"}
+PDFS = {"design": ("docs/DESIGN_RESPONSE.md", "deliverable/Design_Response.pdf"),
+        "summary": ("deliverable/results_summary.md", "deliverable/Results_Summary.pdf")}
 TEMPLATE_OF = DOCUMENTS | SUMMARY
 FIXED = TEMPLATES / "fixed_numbers.txt"
 TABLE_SYSTEMS = [("system", "governed system"), ("baseline", "plain text-to-SQL")]
@@ -121,3 +125,14 @@ def write_documents(docs: dict[str, str], root: Path = ROOT) -> list[Path]:
         path.write_bytes(text.encode("utf-8"))
         written.append(path)
     return written
+
+
+def write_pdfs(docs: dict[str, str], cfg, root: Path = ROOT) -> dict:
+    """Both PDFs from the rendered markdown in `docs` (keyed as in PDFS), written under `root`.
+    Returns the page counts, the summary image height and the paths."""
+    design_md, design_pdf = PDFS["design"]
+    summary_md, summary_pdf = PDFS["summary"]
+    design_pages = build_pdf(docs[design_md], Path(root) / design_pdf, cfg, "design")
+    summary_pages, height = fit_summary(docs[summary_md], Path(root) / summary_pdf, cfg)
+    return {"design_pages": design_pages, "summary_pages": summary_pages, "summary_image_height_cm": height,
+            "paths": [Path(root) / design_pdf, Path(root) / summary_pdf]}
