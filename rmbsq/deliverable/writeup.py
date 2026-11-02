@@ -2,13 +2,15 @@
 Step 6.4. The results summary (instruction 07 C), steps 7.0 and 7.1.
 
 The eval is recorded when `outputs/eval_summary.csv` exists, and pending otherwise. The
-`eval_table` block is built only in the recorded state, and `trap_table` in both. Each document is written with LF
+`eval_table` and `clarify_transcript` blocks are built only in the recorded state, and
+`trap_table` in both. Each document is written with LF
 and a single trailing newline, then number-checked against the claims it uses and
 `templates/fixed_numbers.txt`.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -34,6 +36,7 @@ TRAP_ROWS = {
 }
 TRAP_FORMATS = FORMATS | {"pct3": lambda v: f"{float(v) * 100:.3f}%"}
 TRAP_QUESTION = {"Q2_2025": "Q2 2025 CPR"}
+CLARIFY_ITEM = "Q35"
 
 
 def eval_recorded(outputs: Path) -> bool:
@@ -67,11 +70,21 @@ def trap_table(traps: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def clarify_transcript(detail_path: Path) -> str:
+    """C.2: the system's text for Q35, as an indented code block, 1 line per line of text."""
+    for line in Path(detail_path).read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row["system"] == "system" and row["item_id"] == CLARIFY_ITEM:
+            return "\n".join("    " + text for text in row["text"].split("\n"))
+    raise KeyError(f"no system row for {CLARIFY_ITEM} in {detail_path}")
+
+
 def blocks_for(outputs: Path, recorded: bool) -> dict[str, str]:
     outputs = Path(outputs)
     blocks = {"trap_table": trap_table(pd.read_csv(outputs / "trap_effects.csv", dtype=str, keep_default_na=False))}
     if recorded:
         blocks["eval_table"] = eval_table(pd.read_csv(outputs / "eval_summary.csv"))
+        blocks["clarify_transcript"] = clarify_transcript(outputs / "eval_detail.jsonl")
     return blocks
 
 

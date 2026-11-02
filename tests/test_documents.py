@@ -1,6 +1,7 @@
 """Step 6.4: the committed documents are current, every number in them is explained, and
 the recorded state renders (instruction 06 H, J 6.4)."""
 
+import json
 import shutil
 from collections import Counter
 from pathlib import Path
@@ -21,6 +22,8 @@ SUMMARY_SOURCES = ["data_summary.csv", "compiler_check.csv", "scale_benchmark.cs
 # made-up k per category, for (system, baseline): not results
 MADE_UP_K = {"simple": (9, 7), "grouped": (8, 5), "time": (5, 3), "trap": (7, 2), "ambiguous": (3, 0),
              "unsupported": (2, 1)}
+# made-up system text for Q35, for the clarify_transcript block (instruction 07 C.2): not a result
+MADE_UP_CLARIFY = "Which arrears threshold do you mean?\nOptions: 30+ days; 90+ days"
 
 
 def _committed_state():
@@ -59,11 +62,19 @@ def made_up_eval_summary(path: Path) -> None:
     write_table(pd.DataFrame(rows, columns=SUMMARY_COLUMNS), path)
 
 
+def made_up_eval_detail(path: Path) -> None:
+    """An eval_detail.jsonl holding only the system's Q35 row, with made-up text."""
+    row = {"system": "system", "item_id": "Q35", "question": "What are arrears in NSW?", "intent": "clarify",
+           "columns": [], "rows": [], "text": MADE_UP_CLARIFY, "correct": True, "error": ""}
+    path.write_bytes((json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8"))
+
+
 def render_recorded(folder: Path) -> tuple[dict, pd.DataFrame, dict]:
     folder.mkdir(parents=True, exist_ok=True)
     for name in SUMMARY_SOURCES:
         shutil.copy(OUT / name, folder / name)
     made_up_eval_summary(folder / "eval_summary.csv")
+    made_up_eval_detail(folder / "eval_detail.jsonl")
     assert eval_recorded(folder)
     claims = build_claims(True, folder, out=None)
     blocks = blocks_for(folder, True)
