@@ -24,12 +24,12 @@ Module homes (O-3): `build_deals` in `rmbsq/synth/deals.py`; `generate` in
 `rmbsq/semantic/compiler.py`; `Catalog` in `rmbsq/semantic/catalog.py`; `format_table` in
 `rmbsq/semantic/format.py`; `answer` and `Answer` in `rmbsq/llm/answer.py`; `load_items`
 and `EvalItem` in `rmbsq/eval/run.py`; `build_trap_failures` in `rmbsq/eval/report.py`;
-`render_markdown` in `rmbsq/deliverable/render.py`; figures in `scripts/make_figures.py`;
+`render` in `rmbsq/deliverable/render.py`; figures in `scripts/make_figures.py`;
 config table loaders `load_originators`, `load_geography`, `load_cash_steps`,
 `load_hpi_drift` in `rmbsq/config.py`, each `(path: Path) -> pd.DataFrame`.
 
-`scripts/run_all.py` and `docs/METHODS.md` are not built (O-33); Section 7 has its own
-regeneration check.
+`scripts/run_all.py` and `docs/METHODS.md` are not built (O-33);
+`scripts/build_writeup.py` regenerates the write-up and both PDFs.
 
 ---
 
@@ -570,46 +570,65 @@ by `docs/DESIGN_RESPONSE.md`, and `tests/test_readme.py` by `tests/test_document
 `uv pip sync requirements-lock.txt`, `uv pip install -e . --no-deps`, `pytest -q` and
 `pytest -q -m full`. No secrets. CI reads the committed `data/raw/`; the `full`
 regeneration test of step 1.6 also proves the generator reproduces `MANIFEST.json`
-(O-24). The 7.5 neutrality grep excludes `instructions/` and `.github/` (O-2). Review
+(O-24). The 7.4 neutrality test excludes `instructions/` and `.github/` (O-2). Review
 evidence: the Actions run URL and result (O-25).
 
 **Step 6.6: plan.** This section, updated for instruction 06.
 
-## Section 7: send pack (`deliverable/`)
+## Section 7: the PDFs (`deliverable/`)
 
-**Step 7.1: claims.** File `rmbsq/deliverable/claims.py` (`load_claims(path) -> dict[str,
-str]`) and `deliverable/claims.csv` (`claim_id, value, source_file,
-source_row_filter`), with every number either PDF uses. Test
-`tests/test_claims.py::test_claims_recompute` (every claim recomputes from its source
-and matches its display string). Review evidence: `claims.csv` in full, each with its
-recomputed value.
+Instruction 07 replaces the earlier plan for this section (O-43 (a)). It turns rendered
+markdown into 2 PDFs, `deliverable/Design_Response.pdf` from `docs/DESIGN_RESPONSE.md`
+(at most `design_max_pages` A4 pages) and `deliverable/Results_Summary.pdf` from a new
+template (exactly `summary_max_pages`). Chat Claude wrote all the prose; Claude Code
+writes no prose into either PDF. No API call is made. Both states of Section 6 carry
+over: every file below is regenerated for whichever state the repo is in.
 
-**Step 7.2: design response.** `deliverable/design_response.md.tmpl` (from instruction
-07) rendered by `render_markdown(template, claims) -> str` in
-`rmbsq/deliverable/render.py` to `deliverable/design_response.md`. An unknown claim id
-raises. Tests in `tests/test_design_response.py`: `test_no_unresolved_placeholders` and
-`test_numbers_in_claims` (the 6.9 guard logic applied against `claims.csv`). Review
-evidence: the rendered markdown in full.
+**Step 7.0: config and template.** `[deliverable]` gains `author`, `date_label` (fixed, so
+builds are deterministic) and `repo_url`. `templates/RESULTS_SUMMARY.md.tmpl` is copied
+byte for byte from `instructions/07_templates/`. It renders with the Section 6 `render`
+to `deliverable/results_summary.md` (`SUMMARY` in `rmbsq/deliverable/writeup.py`), and the
+number check runs on it with `trap_table`, `eval_table` and `clarify_transcript` treated
+as blocks. Test `tests/test_results_summary.py::test_summary_template_pending`.
 
-**Step 7.3: results summary.** `deliverable/results_summary.md.tmpl` rendered to
-`deliverable/results_summary.md`: the headline eval table with Wilson intervals,
-`eval_accuracy.png`, the trap failure table, the scale result and the clarify
-transcript, on exactly 1 A4 page. The page check runs in step 7.4. Review evidence: the
-rendered markdown in full.
+**Step 7.1: blocks.** In `rmbsq/deliverable/writeup.py`: `trap_table` (C.1, from
+`outputs/trap_effects.csv`, 1 row per CSV row with the trap label, the item_id, correct
+and naive, `Q2_2025` shown as `Q2 2025 CPR`) in both states, and `clarify_transcript`
+(C.2, the system's text for Q35 from `outputs/eval_detail.jsonl`, as an indented code
+block) in the recorded state only. Tests `test_trap_table` and
+`test_clarify_transcript_recorded`.
 
-**Step 7.4: PDFs.** File `rmbsq/deliverable/pdf.py`: `build_pdf(markdown_text, figures,
-out)` (reportlab Platypus, `page_size`, `font`) and `build_onepager(cfg, out)`, producing
-`deliverable/Design_Response.pdf` and `deliverable/Results_Summary.pdf`. Tests in
-`tests/test_pdf.py`: `test_page_counts` (≤ `design_max_pages`, = `summary_max_pages`,
-read with pypdf), `test_figures_exist`, `test_claims_in_pdf_text` and
-`test_build_twice_identical_text`. Review evidence: page counts; the extracted text of
-the 1 page summary in full.
+**Step 7.2: PDF builder.** `rmbsq/deliverable/pdf.py::build_pdf(markdown_text, out, cfg,
+kind, image_height_cm=None) -> int` (page count), reportlab Platypus with
+`rl_config.invariant = 1`. It supports the D.1 markdown subset only; anything else raises
+`UnsupportedMarkdown(line_number, text)`. A4, 2 cm margins, `cfg.deliverable.font`, the D.2
+sizes per kind, a grey `author · date_label` header under the title, a footer with
+`repo_url` and `page N of M` from a 2-pass build, and the synthetic-data footnote on the
+design response only. Images resolve relative to the repo root (`cfg.root`). Tests in
+`tests/test_pdf.py`: `test_markdown_subset`, `test_pdf_deterministic`,
+`test_footer_and_header`.
 
-**Step 7.5: neutrality.** Test `tests/test_neutrality.py::test_no_banned_words`: a grep
-over the whole repo, excluding `instructions/` and `.github/` (O-2), for the word list in
-instruction 07 finds nothing. Instruction 07 keeps workflow keywords out of its word
-list. Review evidence: the grep command and its (empty) output.
+**Step 7.3: both PDFs.** `scripts/build_writeup.py`, after the Section 6 number check,
+renders and checks `deliverable/results_summary.md`, then builds both PDFs
+(`write_pdfs`). The summary is fitted to 1 page by `fit_summary` (D.3): image height 5.5
+cm, then 0.5 cm less while above 1 page, down to 3.5 cm; above 1 page at 3.5 cm is a stop
+condition. The script prints the page counts and the image height used. Tests
+`tests/test_deliverable_pdfs.py::test_page_counts` and `test_claims_in_pdf_text`,
+`tests/test_results_summary.py::test_summary_current`, and
+`tests/test_documents.py::test_recorded_state_pdfs` (the Section 6 constructed recorded
+state, now also with a made-up Q35 detail row, building both PDFs in a temp dir).
 
-**Step 7.6: fresh-clone PDFs.** A fresh clone regenerates both PDFs from the committed
-CSVs, with no network and no API key. No test; review evidence only (O-25): the
-commands, and the extracted page text of both PDFs diffed against the committed build.
+**Step 7.4: neutrality.** `tests/test_neutrality.py::test_no_banned_words` reads every
+file from `git ls-files` outside `instructions/` and `.github/` (O-2), skipping binary
+files and the test itself, plus the pypdf text of both PDFs, and fails on any phrase of
+the instruction 07 E list, case-insensitively. The list lives only in instruction 07 and
+the test (CLAUDE.md rule 16).
+
+**Step 7.5: plan.** This section, rewritten for instruction 07.
+
+Review evidence (`review/section_7.md`, instruction 07 H): the page counts and image
+height; the full text of `Results_Summary.pdf` and page 1 of `Design_Response.pdf`; PNG
+renders of every page in `review/section_7_pages/` (pypdfium2 if installed, or pdftoppm on
+PATH, otherwise noted as not rendered); the constructed recorded-state summary's page
+count and text, marked as made-up; the neutrality grep result; and both pytest outputs
+from a fresh clone.
