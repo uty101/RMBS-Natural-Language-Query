@@ -19,6 +19,10 @@ marked `full`, so it runs in the default suite. It takes about 1 s locally.
 
 ## O-46. Step 8.1: the pinned SDK rejects `temperature`
 
+**Decided: (b), by instruction 08b A.** Current Claude models reject `temperature` at the
+API itself, so (a) would only move the error to the server. `temperature` is removed from
+`[llm]`, the request and the cache key in step 8b.1.
+
 Raised in session 8 (`instructions/08_record_eval.md`). Evidence is in
 `review/section_8.md`.
 

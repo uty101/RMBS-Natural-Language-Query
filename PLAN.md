@@ -327,7 +327,7 @@ threads=4` raise; `SELECT` works; no file is created).
 
 **Step 4.1: cached client.** `rmbsq/llm/client.py`: `LLMClient(cfg, mode="replay",
 cache_dir=Path("data/llm_cache"))` with `.build_request(...)` and `.call(system,
-messages, tools, tool_choice) -> dict`. The request is `{model, max_tokens, temperature,
+messages, tools, tool_choice) -> dict`. The request is `{model, max_tokens,
 system, messages, tools, tool_choice}`; its key `request_key(request)` is the SHA-256 hex
 of `json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` in
 UTF-8. The cache file `<key>.json` is `{key, request, response, latency_s}` written with

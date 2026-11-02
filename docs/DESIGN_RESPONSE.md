@@ -88,5 +88,5 @@ The eval set should also grow from real usage: log every question, and add every
 The limits:
 
 - the data is synthetic;
-- the eval is 40 questions run once at temperature 0, so each category result carries a wide interval, and repeat-run stability isn't measured;
+- the eval is 40 questions run once, so each category result carries a wide interval; current Claude models don't take a sampling temperature, so a rerun can differ, and repeat-run stability isn't measured;
 - Oracle SQL is rendered and syntax-checked, but not executed against Oracle.

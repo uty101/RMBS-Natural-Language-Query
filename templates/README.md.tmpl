@@ -61,7 +61,7 @@ The 2 trustee formats differ in arrears units (days against missed payments), ha
 ## Limitations
 
 - The data is synthetic. It is built to carry real traps, not to forecast real deals.
-- The eval is 40 questions, run once at temperature 0. Each category holds at most 10 questions, so intervals are wide, and repeat-run stability isn't measured.
+- The eval is 40 questions, run once. Each category holds at most 10 questions, so intervals are wide. Current Claude models don't take a sampling temperature, so a rerun can differ, and repeat-run stability isn't measured. The recorded cache makes this run reproducible.
 - Oracle SQL is rendered and checked for constructs Oracle can't run, but not executed against Oracle. The timings are DuckDB timings on 1 machine.
 
 ## Running it

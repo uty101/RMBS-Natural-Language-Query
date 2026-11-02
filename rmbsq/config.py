@@ -156,7 +156,6 @@ class Resolve:
 @dataclass(frozen=True)
 class Llm:
     model: str
-    temperature: int
     max_tokens: int
     narration_max_words: int
     narration_max_rows: int

@@ -63,7 +63,7 @@ class LLMClient:
     def build_request(self, system: str, messages: list, tools: list, tool_choice) -> dict:
         """C.1."""
         llm = self.cfg.llm
-        return {"model": llm.model, "max_tokens": llm.max_tokens, "temperature": llm.temperature,
+        return {"model": llm.model, "max_tokens": llm.max_tokens,
                 "system": system, "messages": messages, "tools": tools, "tool_choice": tool_choice}
 
     def call(self, system: str, messages: list, tools: list, tool_choice) -> dict:
