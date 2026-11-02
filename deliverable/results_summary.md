@@ -26,10 +26,21 @@ A language model turns each question into a small query spec, and a compiler tur
 
 ## Governed system against plain text-to-SQL
 
-The 40-question eval compares the 2 on the same questions, but it hasn't been recorded in this copy, because a run needs an Anthropic API key and none is stored. It takes 2 commands, and this page then regenerates with the results:
+Same 40 questions. The plain model was given the same table definitions, the same written metric formulas and the exact output columns.
 
-    $env:ANTHROPIC_API_KEY = "<your key>"
-    python scripts/run_eval.py --mode record
-    python scripts/build_writeup.py
+| category | questions | governed system | plain text-to-SQL |
+|---|---|---|---|
+| simple | 10 | 9 (90%) | 10 (100%) |
+| grouped | 10 | 10 (100%) | 10 (100%) |
+| time | 6 | 6 (100%) | 6 (100%) |
+| trap | 8 | 6 (75%) | 7 (88%) |
+| ambiguous | 4 | 4 (100%) | 0 (0%) |
+| unsupported | 2 | 2 (100%) | 2 (100%) |
+| total | 40 | 37 (92%) | 35 (88%) |
 
-![Query time per question](outputs/figures/scale_benchmark.png)
+![Accuracy by category](outputs/figures/eval_accuracy.png)
+
+Asked "What are arrears in NSW?", the governed system replied:
+
+    Which arrears measure do you want for NSW?
+    Options: 30+ days past due; 90+ days past due

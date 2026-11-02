@@ -56,11 +56,17 @@ The prototype runs the whole design end to end on synthetic data built to carry 
 
 **Size isn't the problem.** Copied 36 times to 27,840,096 loan-months, each of the 34 answerable eval questions runs in under 0.75 seconds on 1 machine with DuckDB's default threads. The slowest, on a single thread, takes 3.34 seconds. These are DuckDB timings; Oracle timings depend on partitioning and indexes, and I didn't measure them.
 
-**Against plain text-to-SQL.** The eval compares the governed system with a model writing SQL directly, on the same 40 questions with the same table definitions and metric formulas. It hasn't been run in this copy, because a run needs an Anthropic API key and none is stored here. It takes 2 commands and about 114 API calls, and every document, this one included, regenerates with the results:
+**Against plain text-to-SQL.** On the same 40 questions, the governed system got 37 of 40 right (92.5%, 95% interval 80.1% to 97.4%). A model writing SQL directly got 35 of 40 (87.5%, interval 73.9% to 94.5%), even though it was given the same table definitions and the same written metric formulas. On the 8 trap questions, the governed system got 6 right and the plain model got 7. The plain model has no way to ask a clarifying question, so it gets 0 of the 4 ambiguous questions by design; the governed system asked on 4 of them.
 
-    $env:ANTHROPIC_API_KEY = "<your key>"
-    python scripts/run_eval.py --mode record
-    python scripts/build_writeup.py
+| category | questions | governed system | plain text-to-SQL |
+|---|---|---|---|
+| simple | 10 | 9 (90%) | 10 (100%) |
+| grouped | 10 | 10 (100%) | 10 (100%) |
+| time | 6 | 6 (100%) | 6 (100%) |
+| trap | 8 | 6 (75%) | 7 (88%) |
+| ambiguous | 4 | 4 (100%) | 0 (0%) |
+| unsupported | 2 | 2 (100%) | 2 (100%) |
+| total | 40 | 37 (92%) | 35 (88%) |
 
 ## The traps the eval is built around
 

@@ -27,3 +27,16 @@ trap_weight_gold_pct,0.5196431995,51.96%,outputs/trap_effects.csv,Q33 gold
 trap_weight_naive_pct,0.5091750448,50.92%,outputs/trap_effects.csv,Q33 naive
 trap_compound_cpr_pct,0.1806444857,18.1%,outputs/trap_effects.csv,Q2_2025 gold
 trap_compound_gap,1.2146699999993071e-05,1.2e-05,outputs/trap_effects.csv,abs(Q2_2025 gold - naive)
+sys_total_k,37,37,outputs/eval_summary.csv,"k of category total, system system"
+sys_total_n,40,40,outputs/eval_summary.csv,"n of category total, system system"
+base_total_k,35,35,outputs/eval_summary.csv,"k of category total, system baseline"
+base_total_n,40,40,outputs/eval_summary.csv,"n of category total, system baseline"
+sys_total_pct,0.925,92.5%,outputs/eval_summary.csv,"accuracy of category total, system system"
+sys_total_lo,0.8013546984,80.1%,outputs/eval_summary.csv,"wilson_lo of category total, system system"
+sys_total_hi,0.9741644432,97.4%,outputs/eval_summary.csv,"wilson_hi of category total, system system"
+base_total_pct,0.875,87.5%,outputs/eval_summary.csv,"accuracy of category total, system baseline"
+base_total_lo,0.7388757933,73.9%,outputs/eval_summary.csv,"wilson_lo of category total, system baseline"
+base_total_hi,0.9454058023,94.5%,outputs/eval_summary.csv,"wilson_hi of category total, system baseline"
+sys_trap_k,6,6,outputs/eval_summary.csv,"k of category trap, system system"
+base_trap_k,7,7,outputs/eval_summary.csv,"k of category trap, system baseline"
+sys_ambig_k,4,4,outputs/eval_summary.csv,"k of category ambiguous, system system"

@@ -6,13 +6,19 @@ All data in this repo is synthetic: 50 Australian RMBS deals, 21,945 loans and 7
 
 ## Results
 
-**The live eval hasn't been recorded in this copy.** It compares the governed system with a model writing SQL directly, on 40 questions. It needs an Anthropic API key, which is never stored in the repo. With your own key, in PowerShell from the repo root:
+**Governed system against plain text-to-SQL, same 40 questions.** The governed system got 37 of 40 (92.5%, 95% interval 80.1% to 97.4%); plain text-to-SQL got 35 of 40 (87.5%, interval 73.9% to 94.5%). The plain model was given the same table definitions, the same written metric formulas and the exact output column names for each question. That favours it.
 
-    $env:ANTHROPIC_API_KEY = "<your key>"
-    python scripts/run_eval.py --mode record
-    python scripts/build_writeup.py
+| category | questions | governed system | plain text-to-SQL |
+|---|---|---|---|
+| simple | 10 | 9 (90%) | 10 (100%) |
+| grouped | 10 | 10 (100%) | 10 (100%) |
+| time | 6 | 6 (100%) | 6 (100%) |
+| trap | 8 | 6 (75%) | 7 (88%) |
+| ambiguous | 4 | 4 (100%) | 0 (0%) |
+| unsupported | 2 | 2 (100%) | 2 (100%) |
+| total | 40 | 37 (92%) | 35 (88%) |
 
-The first command records about 114 API calls into `data/llm_cache/`. The second regenerates this README, the design response, the figures and the PDFs from the results. After that, everything replays offline with no key.
+![Accuracy by category](outputs/figures/eval_accuracy.png)
 
 **Cleaning, proved row for row.** The raw trustee files hold 774,057 rows, including 721 resubmitted duplicates. Format B codes its 7 clean-up calls as ordinary repayments. The canonical table rebuilt from those files matches the simulated truth on all 773,336 loan-months, with 0 mismatches.
 
