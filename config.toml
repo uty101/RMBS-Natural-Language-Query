@@ -149,3 +149,6 @@ page_size = "A4"
 design_max_pages = 4
 summary_max_pages = 1
 font = "Helvetica"
+author = "Utkarsh Malhotra"
+date_label = "November 2026"
+repo_url = "https://github.com/uty101/RMBS-Natural-Language-Query"

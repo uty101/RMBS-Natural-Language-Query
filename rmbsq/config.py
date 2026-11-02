@@ -185,6 +185,9 @@ class Deliverable:
     design_max_pages: int
     summary_max_pages: int
     font: str
+    author: str
+    date_label: str
+    repo_url: str
 
 
 @dataclass(frozen=True)

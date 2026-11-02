@@ -1,8 +1,8 @@
 """The README and the design response, rendered from the templates (instruction 06 B, E, H).
-Step 6.4.
+Step 6.4. The results summary (instruction 07 C), steps 7.0 and 7.1.
 
 The eval is recorded when `outputs/eval_summary.csv` exists, and pending otherwise. The
-`eval_table` block is built only in the recorded state. Each document is written with LF
+`eval_table` block is built only in the recorded state, and `trap_table` in both. Each document is written with LF
 and a single trailing newline, then number-checked against the claims it uses and
 `templates/fixed_numbers.txt`.
 """
@@ -13,14 +13,27 @@ from pathlib import Path
 
 import pandas as pd
 
+from rmbsq.deliverable.claims import FORMATS
 from rmbsq.deliverable.numbers import unexplained_numbers
 from rmbsq.deliverable.render import names_used, render
 from rmbsq.semantic.catalog import ROOT
 
 TEMPLATES = ROOT / "templates"
 DOCUMENTS = {"README.md": "README.md.tmpl", "docs/DESIGN_RESPONSE.md": "DESIGN_RESPONSE.md.tmpl"}
+SUMMARY = {"deliverable/results_summary.md": "RESULTS_SUMMARY.md.tmpl"}
+TEMPLATE_OF = DOCUMENTS | SUMMARY
 FIXED = TEMPLATES / "fixed_numbers.txt"
 TABLE_SYSTEMS = [("system", "governed system"), ("baseline", "plain text-to-SQL")]
+# instruction 07 C.1: trap -> (label, value format); pct3 is x 100, 3 dp and %
+TRAP_ROWS = {
+    "arrears_units": ("Arrears units", "pct2"),
+    "call_as_prepay": ("Calls as prepayments", "pct1"),
+    "exit_rows": ("Exit rows as live loans", "int"),
+    "weighting": ("Unweighted average", "pct2"),
+    "compounding": ("Averaging CPR (dropped, gap too small)", "pct3"),
+}
+TRAP_FORMATS = FORMATS | {"pct3": lambda v: f"{float(v) * 100:.3f}%"}
+TRAP_QUESTION = {"Q2_2025": "Q2 2025 CPR"}
 
 
 def eval_recorded(outputs: Path) -> bool:
@@ -44,16 +57,29 @@ def eval_table(summary: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def trap_table(traps: pd.DataFrame) -> str:
+    """C.1: 1 row per trap_effects.csv row, in CSV order."""
+    lines = ["| trap | question | correct | naive mistake gives |", "|---|---|---|---|"]
+    for r in traps.itertuples(index=False):
+        label, fmt = TRAP_ROWS[r.trap]
+        show = TRAP_FORMATS[fmt]
+        lines.append(f"| {label} | {TRAP_QUESTION.get(r.item_id, r.item_id)} | {show(r.gold)} | {show(r.naive)} |")
+    return "\n".join(lines)
+
+
 def blocks_for(outputs: Path, recorded: bool) -> dict[str, str]:
-    if not recorded:
-        return {}
-    return {"eval_table": eval_table(pd.read_csv(Path(outputs) / "eval_summary.csv"))}
+    outputs = Path(outputs)
+    blocks = {"trap_table": trap_table(pd.read_csv(outputs / "trap_effects.csv", dtype=str, keep_default_na=False))}
+    if recorded:
+        blocks["eval_table"] = eval_table(pd.read_csv(outputs / "eval_summary.csv"))
+    return blocks
 
 
-def render_documents(claims: pd.DataFrame, blocks: dict, recorded: bool) -> dict[str, str]:
+def render_documents(claims: pd.DataFrame, blocks: dict, recorded: bool,
+                     documents: dict[str, str] = DOCUMENTS) -> dict[str, str]:
     display = dict(zip(claims["claim_id"], claims["display"]))
     docs = {}
-    for doc, template in DOCUMENTS.items():
+    for doc, template in documents.items():
         text = render((TEMPLATES / template).read_text(encoding="utf-8"), display, blocks, recorded)
         docs[doc] = text.rstrip("\n") + "\n"
     return docs
@@ -68,7 +94,7 @@ def check_documents(docs: dict[str, str], claims: pd.DataFrame, blocks: dict, re
     display = dict(zip(claims["claim_id"], claims["display"]))
     out = {}
     for doc, text in docs.items():
-        used = names_used((TEMPLATES / DOCUMENTS[doc]).read_text(encoding="utf-8"), recorded)
+        used = names_used((TEMPLATES / TEMPLATE_OF[doc]).read_text(encoding="utf-8"), recorded)
         out[doc] = unexplained_numbers(text, {n: display[n] for n in used if n in display}, blocks,
                                        fixed_numbers())
     return out
