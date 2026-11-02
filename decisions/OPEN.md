@@ -16,3 +16,23 @@ marked `full`, so it runs in the default suite. It takes about 1 s locally.
 - (a) Keep it as written: the default-suite test reads `data/raw/` as text for the phrase
   search only. **This is what is done.**
 - (b) Skip `data/raw/` in the default test, and search it in a second test marked `full`.
+
+## O-46. Step 8.1: the pinned SDK rejects `temperature`
+
+Raised in session 8 (`instructions/08_record_eval.md`). Evidence is in
+`review/section_8.md`.
+
+- The pinned `anthropic==2.3.0` SDK's `Messages.create()` has no `temperature` parameter.
+- Kickoff 6.8 (cache key) and instruction 04 C.1 (request dict) both put `temperature` in
+  every request, with the value 0 from `config.toml`.
+- `LLMClient._record` passes the request as keyword arguments, so the first record-mode
+  call raises a `TypeError` before anything is sent.
+- No API call was made.
+
+- (a) In `rmbsq/llm/client.py` `_record`, send `temperature` through `extra_body`. The C.1
+  request dict, the cache key and the cache file format stay unchanged.
+  - Risk: the API itself may reject `temperature` for `claude-sonnet-5-5`. That would show
+    up as a 400 on the first call, and would lead to (b).
+- (b) Drop `temperature` from the request and the cache key.
+  - This amends kickoff 6.8, kickoff item 10 ("temperature 0") and instruction 04 C.1.
+  - It also changes the cache-key tests and the write-up's statement of the eval settings.
