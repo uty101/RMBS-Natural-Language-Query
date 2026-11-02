@@ -1,0 +1,43 @@
+# Asking RMBS loan data questions in plain English: results
+
+A language model turns each question into a small query spec, and a compiler turns the spec into SQL over governed metric definitions, so the model never does the arithmetic. These results are from a working prototype on synthetic data: {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months in 2 trustee formats.
+
+## What is proved
+
+| check | result |
+|---|---|
+| Cleaning: canonical table against simulated truth | {{canonical_truth_mismatches}} mismatches over {{n_loan_months}} loan-months |
+| Cleaning: resubmitted duplicates removed | {{n_resubmission_duplicates}} of {{n_raw_rows}} raw rows |
+| Cleaning: clean-up calls coded as repayments, recovered | {{n_called_deals_b}} deals |
+| Compiler: output against hand-written SQL | {{gold_matched}} of {{gold_total}} match, worst difference {{gold_worst_diff}} |
+| Compiler: queries that render to Oracle | {{oracle_ok}} of {{gold_total}} |
+| Scale: slowest question at {{rows_36x}} loan-months | under {{x36_max_default_s}} s with default threads |
+
+## The traps a plain SQL writer falls into
+
+{{trap_table}}
+
+{{#eval}}
+## Governed system against plain text-to-SQL
+
+Same 40 questions. The plain model was given the same table definitions, the same written metric formulas and the exact output columns.
+
+{{eval_table}}
+
+![Accuracy by category](outputs/figures/eval_accuracy.png)
+
+Asked "What are arrears in NSW?", the governed system replied:
+
+{{clarify_transcript}}
+{{/eval}}
+{{^eval}}
+## Governed system against plain text-to-SQL
+
+The 40-question eval compares the 2 on the same questions, but it hasn't been recorded in this copy, because a run needs an Anthropic API key and none is stored. It takes 2 commands, and this page then regenerates with the results:
+
+    $env:ANTHROPIC_API_KEY = "<your key>"
+    python scripts/run_eval.py --mode record
+    python scripts/build_writeup.py
+
+![Query time per question](outputs/figures/scale_benchmark.png)
+{{/eval}}
