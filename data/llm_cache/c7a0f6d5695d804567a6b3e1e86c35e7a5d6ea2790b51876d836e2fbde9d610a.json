@@ -1,0 +1,51 @@
+{
+ "key": "c7a0f6d5695d804567a6b3e1e86c35e7a5d6ea2790b51876d836e2fbde9d610a",
+ "latency_s": 2.017,
+ "request": {
+  "max_tokens": 4096,
+  "messages": [
+   {
+    "content": "{\"question\": \"Which 5 deals had the highest 90+ arrears rate by balance in December 2024?\", \"spec\": {\"clarify\": null, \"filters\": {}, \"group_by\": [\"deal_name\"], \"intent\": \"answer\", \"metrics\": [\"arrears_90p_bal\"], \"order\": {\"direction\": \"desc\", \"limit\": 5, \"metric\": \"arrears_90p_bal\"}, \"time\": {\"end\": \"2024-12\", \"grain\": \"month\", \"shape\": \"point\", \"start\": \"2024-12\"}, \"unsupported_reason\": null}, \"table\": {\"columns\": [\"deal_name\", \"period_label\", \"arrears_90p_bal\"], \"rows\": [[\"CST 2020-1\", \"2024-12\", \"4.18%\"], [\"KOO 2021-2\", \"2024-12\", \"3.35%\"], [\"KOO 2019-2\", \"2024-12\", \"3.19%\"], [\"RED 2023-2\", \"2024-12\", \"2.76%\"], [\"CST 2019-2\", \"2024-12\", \"2.42%\"]]}, \"truncated\": false}",
+    "role": "user"
+   }
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": null,
+  "system": "You write a short answer to a question about an RMBS loan pool, using only a result table that has already been computed. The user message holds the question, the query spec that produced the table, and the table with every value already formatted for display.\n\nRules:\n\n1. Answer the question in plain prose, in at most 120 words, with no headings, bullets or tables.\n2. Every number you write must appear in the table exactly as displayed: same digits, same decimal places, same % or A$…m. Don't round, convert, add, subtract, average or rank-count values yourself, and don't state how many rows, deals or months there are unless that count is a value in the table.\n3. You may name dimension values, period labels and metric names, and repeat numbers that appear in the question.\n4. If the spec uses a balance-weighted metric and the question didn't say whether it meant balance or count, say once that the figure is by balance.\n5. If the table is empty, say that no loans match, and name the filters and dates from the spec.\n6. If the table was truncated, the user message says so. Describe only the rows you were given.\n7. Don't speculate about causes, and don't forecast.\n"
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "citations": null,
+    "text": "In December 2024, the five deals with the highest 90+ arrears rate were CST 2020-1 (4.18%), KOO 2021-2 (3.35%), KOO 2019-2 (3.19%), RED 2023-2 (2.76%) and CST 2019-2 (2.42%). These rates are measured by balance, not by loan count.",
+    "type": "text"
+   }
+  ],
+  "diagnostics": null,
+  "id": "msg_011CgeLDdksKQiHNjezfQD6W",
+  "model": "claude-sonnet-5-5",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 701,
+   "output_tokens": 115,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "server_tool_use": null,
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+}

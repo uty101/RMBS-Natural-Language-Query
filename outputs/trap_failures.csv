@@ -1,0 +1,4 @@
+system,item_id,trap,expected,got
+system,Q27,arrears_units,0.66%,clarify
+system,Q28,arrears_units,1.35%,clarify
+baseline,Q28,arrears_units,1.35%,decline

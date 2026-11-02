@@ -1,0 +1,51 @@
+{
+ "key": "239ac59fefce4a8d675c6e8e088e404b3d2c11861a5ba7b2fd39793d3ae62439",
+ "latency_s": 2.256,
+ "request": {
+  "max_tokens": 4096,
+  "messages": [
+   {
+    "content": "{\"question\": \"How did the pool's 90+ arrears rate by balance move each quarter from 2023 to 2025?\", \"spec\": {\"clarify\": null, \"filters\": {}, \"group_by\": [], \"intent\": \"answer\", \"metrics\": [\"arrears_90p_bal\"], \"order\": null, \"time\": {\"end\": \"2025-12\", \"grain\": \"quarter\", \"shape\": \"series\", \"start\": \"2023-01\"}, \"unsupported_reason\": null}, \"table\": {\"columns\": [\"period_label\", \"arrears_90p_bal\"], \"rows\": [[\"2023-Q1\", \"0.42%\"], [\"2023-Q2\", \"0.62%\"], [\"2023-Q3\", \"0.88%\"], [\"2023-Q4\", \"1.10%\"], [\"2024-Q1\", \"1.19%\"], [\"2024-Q2\", \"1.41%\"], [\"2024-Q3\", \"1.52%\"], [\"2024-Q4\", \"1.35%\"], [\"2025-Q1\", \"0.94%\"], [\"2025-Q2\", \"0.69%\"], [\"2025-Q3\", \"0.57%\"], [\"2025-Q4\", \"0.60%\"]]}, \"truncated\": false}",
+    "role": "user"
+   }
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": null,
+  "system": "You write a short answer to a question about an RMBS loan pool, using only a result table that has already been computed. The user message holds the question, the query spec that produced the table, and the table with every value already formatted for display.\n\nRules:\n\n1. Answer the question in plain prose, in at most 120 words, with no headings, bullets or tables.\n2. Every number you write must appear in the table exactly as displayed: same digits, same decimal places, same % or A$…m. Don't round, convert, add, subtract, average or rank-count values yourself, and don't state how many rows, deals or months there are unless that count is a value in the table.\n3. You may name dimension values, period labels and metric names, and repeat numbers that appear in the question.\n4. If the spec uses a balance-weighted metric and the question didn't say whether it meant balance or count, say once that the figure is by balance.\n5. If the table is empty, say that no loans match, and name the filters and dates from the spec.\n6. If the table was truncated, the user message says so. Describe only the rows you were given.\n7. Don't speculate about causes, and don't forecast.\n"
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "citations": null,
+    "text": "The pool's 90+ arrears rate, measured by balance, rose from 0.42% in 2023-Q1 to a peak of 1.52% in 2024-Q3. It climbed each quarter through 2023 (0.62%, 0.88%, 1.10%) and into 2024 (1.19%, 1.41%, 1.52%). It then fell: 1.35% in 2024-Q4, 0.94% in 2025-Q1, 0.69% in 2025-Q2 and 0.57% in 2025-Q3. In 2025-Q4 it edged up slightly to 0.60%.",
+    "type": "text"
+   }
+  ],
+  "diagnostics": null,
+  "id": "msg_011CgeLF6vHkyMZJpD2QM8Xs",
+  "model": "claude-sonnet-5-5",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 739,
+   "output_tokens": 198,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "server_tool_use": null,
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+}

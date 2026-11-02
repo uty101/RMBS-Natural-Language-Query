@@ -1,0 +1,72 @@
+{
+ "key": "d47e4d3a229ada8e7c4a8a1e2d763980ccb3c1f8242a35ed4dfaf303f240b3fa",
+ "latency_s": 6.863,
+ "request": {
+  "max_tokens": 4096,
+  "messages": [
+   {
+    "content": "What was the CPR for each originator over 2025 as a whole?\n\nOutput columns, in order: originator, period_label, cpr",
+    "role": "user"
+   }
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": {
+   "format": {
+    "schema": {
+     "additionalProperties": false,
+     "properties": {
+      "sql": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "sql"
+     ],
+     "type": "object"
+    },
+    "type": "json_schema"
+   }
+  },
+  "system": "You write 1 DuckDB SQL query that answers a question about a pool of Australian residential mortgage-backed securities. Reply with JSON in the required format, holding the query in `sql`. The query runs on a read-only database, and its result is the answer.\n\n# Tables\n\n```sql\n-- One row per loan per month, 2021-10 to 2026-09. period is the first day of the month and means month-end status.\nCREATE TABLE fact_loan_month (\n  loan_id VARCHAR,                 -- e.g. D004-0137\n  deal_id VARCHAR,                 -- e.g. D004\n  period DATE,\n  opening_balance DECIMAL(18,2),   -- AUD, balance at the start of the month\n  scheduled_principal DECIMAL(18,2),\n  curtailment DECIMAL(18,2),       -- partial prepayment\n  closing_balance DECIMAL(18,2),   -- AUD, 0 on the month the loan exits\n  interest_rate DOUBLE,            -- decimal, 0.0612 = 6.12%\n  dpd_bucket TINYINT,              -- 0 current, 1 = 1-29, 2 = 30-59, 3 = 60-89, 4 = 90+ days past due\n  hardship_flag BOOLEAN,           -- on a hardship arrangement; such loans have dpd_bucket 0\n  exit_reason VARCHAR,             -- NULL, 'prepaid', 'repurchased', 'defaulted' or 'called'\n  exit_balance DECIMAL(18,2),      -- balance leaving the pool on the exit row, else 0\n  loss DECIMAL(18,2),\n  indexed_value DOUBLE,            -- property value indexed to suburb house prices\n  indexed_ltv DOUBLE,              -- current LTV, decimal\n  ltv_bucket_indexed VARCHAR,      -- '<=60', '60-70', '70-80', '80-90', '>90'\n  seasoning_months INTEGER,\n  seasoning_bucket VARCHAR,        -- '0-12', '13-24', '25-36', '37-60', '>60'\n  rate_type VARCHAR,               -- current: 'fixed' or 'variable'\n  io_flag BOOLEAN                  -- interest only that month\n);\n-- One row per loan; static attributes.\nCREATE TABLE dim_loan (\n  loan_id VARCHAR, deal_id VARCHAR, orig_month DATE, vintage_year INTEGER,\n  orig_balance DECIMAL(18,2), orig_valuation DECIMAL(18,2), orig_ltv DOUBLE,\n  ltv_bucket_orig VARCHAR, rate_type_orig VARCHAR, fixed_end_month DATE,\n  io_flag_orig BOOLEAN, io_end_month DATE,\n  occupancy VARCHAR,               -- 'owner' or 'investor'\n  lmi_flag BOOLEAN,                -- lenders mortgage insurance\n  city VARCHAR, state VARCHAR, area VARCHAR, suburb VARCHAR\n);\n-- One row per deal.\nCREATE TABLE dim_deal (\n  deal_id VARCHAR, deal_name VARCHAR,          -- e.g. 'HARB 2019-1'\n  originator VARCHAR,                          -- 'HARB', 'KOO', 'WAT', 'CST', 'RED'\n  originator_name VARCHAR, trustee_format VARCHAR, issue_month DATE, issue_year INTEGER,\n  issue_balance DECIMAL(18,2)\n);\n-- One row per month in the window, with ready-made labels.\nCREATE TABLE dim_period (period DATE, month_label VARCHAR, quarter_label VARCHAR, year_label VARCHAR);\n```\n\n# Metric definitions\n\nStock metrics use rows with closing_balance > 0 and are ratios of sums. Within a time bucket, they take the latest month in the bucket that has such rows for that group.\n\n- loan_count = number of rows.\n- balance_total = sum(closing_balance).\n- arrears_30p_bal = sum(closing_balance where dpd_bucket >= 2 and not hardship_flag) / sum(closing_balance).\n- arrears_90p_bal = sum(closing_balance where dpd_bucket = 4 and not hardship_flag) / sum(closing_balance).\n- arrears_90p_cnt = count(rows where dpd_bucket = 4 and not hardship_flag) / count(rows).\n- hardship_share_bal = sum(closing_balance where hardship_flag) / sum(closing_balance).\n- wa_orig_ltv = sum(closing_balance × dim_loan.orig_ltv) / sum(closing_balance).\n- wa_indexed_ltv = sum(closing_balance × indexed_ltv) / sum(closing_balance).\n- wa_rate = sum(closing_balance × interest_rate) / sum(closing_balance).\n\nFlow metrics use rows with opening_balance > 0, per month:\n\n- smm = (sum of curtailment + sum of exit_balance where exit_reason = 'prepaid') / sum of (opening_balance − scheduled_principal) over rows whose exit_reason is NULL or 'prepaid'.\n- mdr = sum of exit_balance where exit_reason = 'defaulted' / sum of opening_balance.\n\nOver a bucket, take the n months with a positive denominator:\n\n- smm_p = 1 − product of (1 − smm);\n- smm_vol = 1 − (1 − smm_p)^(1/n);\n- cpr = 1 − (1 − smm_p)^(12/n);\n- cdr is the same as cpr, using mdr.\n\n# Output rules\n\n- Return exactly the columns named in the user message, in that order.\n- `period_label` is:\n  - YYYY-MM per month for a monthly series, YYYY-Qn per quarter, YYYY per year;\n  - for a single figure over 1 month, that month as YYYY-MM;\n  - for a single figure over several months, the text 'range'.\n- With no time stated, use 2026-09 only.\n- Dimension output values:\n  - flags as 'yes' or 'no';\n  - dpd_bucket as 'current', '1-29', '30-59', '60-89' or '90+';\n  - years as integers;\n  - other text as stored.\n- Ratios are decimals (0.0154, not 1.54).\n- Sort ascending by the dimension columns, then period_label, unless the question asks for a ranking.\n- If the question is ambiguous or can't be answered from these tables, return an empty string as `sql`.\n"
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "citations": null,
+    "text": "{\"sql\":\"WITH m AS (SELECT d.originator, f.period, (CAST(sum(f.curtailment) AS DOUBLE) + CAST(sum(CASE WHEN f.exit_reason = 'prepaid' THEN f.exit_balance ELSE 0 END) AS DOUBLE)) / NULLIF(CAST(sum(CASE WHEN f.exit_reason IS NULL OR f.exit_reason = 'prepaid' THEN f.opening_balance - f.scheduled_principal END) AS DOUBLE), 0) AS smm FROM fact_loan_month f JOIN dim_deal d ON f.deal_id = d.deal_id WHERE f.opening_balance > 0 AND f.period >= DATE '2025-01-01' AND f.period < DATE '2026-01-01' GROUP BY d.originator, f.period) SELECT originator, 'range' AS period_label, 1 - pow(exp(sum(ln(1 - smm))), 12.0 / count(*)) AS cpr FROM m WHERE smm IS NOT NULL GROUP BY originator ORDER BY originator\"}",
+    "type": "text"
+   }
+  ],
+  "diagnostics": null,
+  "id": "msg_011CgeLPKz4VtgYPAHHNJQy1",
+  "model": "claude-sonnet-5-5",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 2472,
+   "output_tokens": 997,
+   "output_tokens_details": {
+    "thinking_tokens": 605
+   },
+   "server_tool_use": null,
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+}

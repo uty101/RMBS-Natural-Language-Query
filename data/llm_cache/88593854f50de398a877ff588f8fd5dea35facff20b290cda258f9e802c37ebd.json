@@ -1,0 +1,51 @@
+{
+ "key": "88593854f50de398a877ff588f8fd5dea35facff20b290cda258f9e802c37ebd",
+ "latency_s": 1.495,
+ "request": {
+  "max_tokens": 4096,
+  "messages": [
+   {
+    "content": "{\"question\": \"What was the pool's weighted average indexed LVR at the end of each year from 2022 to 2025?\", \"spec\": {\"clarify\": null, \"filters\": {}, \"group_by\": [], \"intent\": \"answer\", \"metrics\": [\"wa_indexed_ltv\"], \"order\": null, \"time\": {\"end\": \"2025-12\", \"grain\": \"year\", \"shape\": \"series\", \"start\": \"2022-01\"}, \"unsupported_reason\": null}, \"table\": {\"columns\": [\"period_label\", \"wa_indexed_ltv\"], \"rows\": [[\"2022\", \"57.81%\"], [\"2023\", \"56.87%\"], [\"2024\", \"51.96%\"], [\"2025\", \"48.71%\"]]}, \"truncated\": false}",
+    "role": "user"
+   }
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": null,
+  "system": "You write a short answer to a question about an RMBS loan pool, using only a result table that has already been computed. The user message holds the question, the query spec that produced the table, and the table with every value already formatted for display.\n\nRules:\n\n1. Answer the question in plain prose, in at most 120 words, with no headings, bullets or tables.\n2. Every number you write must appear in the table exactly as displayed: same digits, same decimal places, same % or A$…m. Don't round, convert, add, subtract, average or rank-count values yourself, and don't state how many rows, deals or months there are unless that count is a value in the table.\n3. You may name dimension values, period labels and metric names, and repeat numbers that appear in the question.\n4. If the spec uses a balance-weighted metric and the question didn't say whether it meant balance or count, say once that the figure is by balance.\n5. If the table is empty, say that no loans match, and name the filters and dates from the spec.\n6. If the table was truncated, the user message says so. Describe only the rows you were given.\n7. Don't speculate about causes, and don't forecast.\n"
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "citations": null,
+    "text": "The pool's weighted average indexed LVR, measured by balance, fell at each year-end: 57.81% in 2022, 56.87% in 2023, 51.96% in 2024 and 48.71% in 2025.",
+    "type": "text"
+   }
+  ],
+  "diagnostics": null,
+  "id": "msg_011CgeLGJQcjuh8JjkKsnVMe",
+  "model": "claude-sonnet-5-5",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 594,
+   "output_tokens": 72,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "server_tool_use": null,
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+}

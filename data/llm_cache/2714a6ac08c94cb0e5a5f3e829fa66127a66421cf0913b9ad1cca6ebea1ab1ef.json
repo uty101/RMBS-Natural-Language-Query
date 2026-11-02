@@ -1,0 +1,51 @@
+{
+ "key": "2714a6ac08c94cb0e5a5f3e829fa66127a66421cf0913b9ad1cca6ebea1ab1ef",
+ "latency_s": 2.18,
+ "request": {
+  "max_tokens": 4096,
+  "messages": [
+   {
+    "content": "{\"question\": \"How many loans are in the pool now?\", \"spec\": {\"clarify\": null, \"filters\": {}, \"group_by\": [], \"intent\": \"answer\", \"metrics\": [\"loan_count\"], \"order\": null, \"time\": {\"end\": \"2026-09\", \"grain\": \"month\", \"shape\": \"point\", \"start\": \"2026-09\"}, \"unsupported_reason\": null}, \"table\": {\"columns\": [\"period_label\", \"loan_count\"], \"rows\": [[\"2026-09\", \"7,115\"]]}, \"truncated\": false}",
+    "role": "user"
+   }
+  ],
+  "model": "claude-sonnet-5-5",
+  "output_config": null,
+  "system": "You write a short answer to a question about an RMBS loan pool, using only a result table that has already been computed. The user message holds the question, the query spec that produced the table, and the table with every value already formatted for display.\n\nRules:\n\n1. Answer the question in plain prose, in at most 120 words, with no headings, bullets or tables.\n2. Every number you write must appear in the table exactly as displayed: same digits, same decimal places, same % or A$…m. Don't round, convert, add, subtract, average or rank-count values yourself, and don't state how many rows, deals or months there are unless that count is a value in the table.\n3. You may name dimension values, period labels and metric names, and repeat numbers that appear in the question.\n4. If the spec uses a balance-weighted metric and the question didn't say whether it meant balance or count, say once that the figure is by balance.\n5. If the table is empty, say that no loans match, and name the filters and dates from the spec.\n6. If the table was truncated, the user message says so. Describe only the rows you were given.\n7. Don't speculate about causes, and don't forecast.\n"
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "citations": null,
+    "text": "As of 2026-09, the pool has 7,115 loans.",
+    "type": "text"
+   }
+  ],
+  "diagnostics": null,
+  "id": "msg_011CgeLAgzm5TwGReX3Jbkrm",
+  "model": "claude-sonnet-5-5",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 526,
+   "output_tokens": 22,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "server_tool_use": null,
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+}
