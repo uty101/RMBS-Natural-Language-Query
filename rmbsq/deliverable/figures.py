@@ -61,14 +61,35 @@ def _seconds(v: float, _pos) -> str:
     return f"{v:g}" if lead in (1, 2, 5) else ""
 
 
+NAVY, TEAL, INK, MUTED, RULE = "#1F3A5F", "#2A9D8F", "#1E293B", "#64748B", "#CBD5E1"  # shared with pdf.py
+SYSTEM_COLOURS = {"system": NAVY, "baseline": TEAL}
+# 8 vintages, from deep navy through teal to sand, readable side by side
+VINTAGE_COLOURS = ["#1F3A5F", "#33658A", "#4F86A6", "#2A9D8F", "#57B8A8", "#8AB17D", "#E9C46A", "#F4A261"]
+
+
+def _style(ax):
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(RULE)
+    ax.tick_params(colors=MUTED, labelcolor=INK)
+    ax.yaxis.label.set_color(INK)
+    ax.xaxis.label.set_color(INK)
+    ax.title.set_color(NAVY)
+    ax.grid(axis="y", color=RULE, linewidth=0.6)
+    ax.set_axisbelow(True)
+
+
 def _figure():
     plt.rcParams["svg.hashsalt"] = "rmbsq"
-    return plt.subplots(figsize=SIZE)
+    fig, ax = plt.subplots(figsize=SIZE)
+    _style(ax)
+    return fig, ax
 
 
 def _save(fig, outputs: Path, key: str) -> Path:
     png, source = FIGURES[key]
-    fig.text(0.01, 0.01, f"Synthetic data. Source: outputs/{source}.", fontsize=8, color="grey",
+    fig.text(0.01, 0.01, f"Synthetic data. Source: outputs/{source}.", fontsize=8, color=MUTED,
              ha="left", va="bottom")
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     path = Path(outputs) / png
@@ -83,14 +104,15 @@ def arrears_figure(outputs: Path) -> Path:
     quarters = sorted(df["period_label"].unique())
     pos = {q: i for i, q in enumerate(quarters)}
     fig, ax = _figure()
-    for year, g in df.groupby("vintage_year", sort=True):
+    for k, (year, g) in enumerate(df.groupby("vintage_year", sort=True)):
         g = g.sort_values("period_label")
-        ax.plot([pos[q] for q in g["period_label"]], g["arrears_90p_bal"], label=str(year), linewidth=1.5)
+        ax.plot([pos[q] for q in g["period_label"]], g["arrears_90p_bal"], label=str(year), linewidth=1.6,
+                color=VINTAGE_COLOURS[k % len(VINTAGE_COLOURS)])
     ax.set_xticks(range(0, len(quarters), 4), quarters[::4])
     ax.yaxis.set_major_formatter(PercentFormatter(1.0))
     ax.set_ylabel("90+ arrears by balance")
     ax.set_xlabel("quarter")
-    ax.legend(title="vintage", fontsize=8, title_fontsize=8, loc="upper left")
+    ax.legend(title="vintage", fontsize=8, title_fontsize=8, loc="upper left", frameon=False)
     return _save(fig, outputs, "arrears")
 
 
@@ -102,15 +124,15 @@ def scale_figure(outputs: Path) -> Path:
     wide = wide.sort_values([tiled, "1x"]).reset_index()
     fig, ax = _figure()
     x = range(len(wide))
-    ax.scatter(x, wide["1x"], s=18, label="1x")
-    ax.scatter(x, wide[tiled], s=18, label=tiled)
+    ax.scatter(x, wide["1x"], s=20, label="1x", color=TEAL)
+    ax.scatter(x, wide[tiled], s=20, label=tiled, color=NAVY)
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(FuncFormatter(_seconds))
     ax.yaxis.set_minor_formatter(FuncFormatter(_seconds))
     ax.set_xticks(list(x), wide["item_id"], rotation=90, fontsize=7)
     ax.set_ylabel("median query time (s)")
     ax.set_title("Query time per test question, at 1x and 36x data volume")
-    ax.legend(fontsize=8, loc="upper left")
+    ax.legend(fontsize=8, loc="upper left", frameon=False)
     return _save(fig, outputs, "scale")
 
 
@@ -125,12 +147,13 @@ def eval_figure(outputs: Path) -> Path:
         x = [i + (j - 0.5) * width for i in range(len(categories))]
         acc = part["accuracy"].to_numpy()
         err = [acc - part["wilson_lo"].to_numpy(), part["wilson_hi"].to_numpy() - acc]
-        ax.bar(x, acc, width, yerr=err, capsize=3, label=label)
+        ax.bar(x, acc, width, yerr=err, capsize=3, label=label, color=SYSTEM_COLOURS[system],
+               error_kw={"ecolor": MUTED, "elinewidth": 0.8})
     ax.set_xticks(range(len(categories)), categories)
     ax.set_ylim(0, 1)
     ax.yaxis.set_major_formatter(PercentFormatter(1.0))
     ax.set_ylabel("share correct")
-    ax.legend(fontsize=8, loc="upper right")
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.08), ncol=2, frameon=False)
     return _save(fig, outputs, "eval")
 
 

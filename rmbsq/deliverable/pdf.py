@@ -25,21 +25,30 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.platypus import (Image, KeepTogether, ListFlowable, ListItem, Paragraph, Preformatted,
-                                SimpleDocTemplate, Spacer, Table, TableStyle)
+from reportlab.platypus import (HRFlowable, Image, KeepTogether, ListFlowable, ListItem, Paragraph,
+                                Preformatted, SimpleDocTemplate, Spacer, Table, TableStyle)
 
 rl_config.invariant = 1
 
 MARGIN = 2 * cm  # D.2
 GREY = colors.grey
+# palette, shared with rmbsq/deliverable/figures.py
+NAVY = colors.HexColor("#1F3A5F")
+TEAL = colors.HexColor("#2A9D8F")
+INK = colors.HexColor("#1E293B")
+MUTED = colors.HexColor("#64748B")
+RULE = colors.HexColor("#CBD5E1")
+PANEL = colors.HexColor("#F1F5F9")
+BAND_PT = 6  # height of the navy band across the top of every page
 FOOTNOTE = "All figures are generated from CSV files committed in the repo. The data is synthetic."  # D.2
 DESIGN_IMAGE_MAX_CM = 8.0  # D.2
 SUMMARY_IMAGE_START_CM, SUMMARY_IMAGE_STEP_CM, SUMMARY_IMAGE_MIN_CM = 5.5, 0.5, 3.5  # D.3
 
 # D.2 sizes in pt: title, heading, body, body leading, code, table
 SIZES = {
-    "design": {"title": 16, "heading": 12, "body": 10, "leading": 13, "code": 8.5, "table": 9},
-    "summary": {"title": 13, "heading": 10, "body": 8.5, "leading": 10.5, "code": 7.5, "table": 8.5},
+    "design": {"title": 16, "heading": 12, "body": 10, "leading": 13, "code": 8.5, "table": 9, "row_pad": (2.5, 3)},
+    "summary": {"title": 13, "heading": 10, "body": 8.5, "leading": 10.5, "code": 7.5, "table": 8.5,
+                "row_pad": (0.8, 1.6)},
 }
 HEADER_PT, FOOTER_PT, FOOTNOTE_PT = 9, 7.5, 8  # D.2
 TABLE_PAD = 4  # pt, left and right padding of a table cell
@@ -188,20 +197,22 @@ def _styles(font: str, kind: str) -> dict[str, ParagraphStyle]:
     body_gap = z["body"] * 0.6
     return {
         "title": ParagraphStyle("title", fontName=bold, fontSize=z["title"], leading=z["title"] * 1.25,
-                                spaceAfter=2),
+                                spaceAfter=2, textColor=NAVY),
         "header": ParagraphStyle("header", fontName=font, fontSize=HEADER_PT, leading=HEADER_PT * 1.3,
-                                 textColor=GREY, spaceAfter=z["body"]),
+                                 textColor=TEAL, spaceAfter=4),
         "heading": ParagraphStyle("heading", fontName=bold, fontSize=z["heading"], leading=z["heading"] * 1.25,
-                                  spaceBefore=z["heading"] * 0.6, spaceAfter=z["heading"] * 0.35, keepWithNext=1),
+                                  spaceBefore=z["heading"] * 0.8, spaceAfter=z["heading"] * 0.4, keepWithNext=1,
+                                  textColor=NAVY),
         "body": ParagraphStyle("body", fontName=font, fontSize=z["body"], leading=z["leading"],
-                               spaceAfter=body_gap),
-        "bullet": ParagraphStyle("bullet", fontName=font, fontSize=z["body"], leading=z["leading"]),
-        "code": ParagraphStyle("code", fontName="Courier", fontSize=z["code"], leading=z["code"] * 1.25,
-                               leftIndent=z["body"], spaceAfter=body_gap),
-        "cell": ParagraphStyle("cell", fontName=font, fontSize=z["table"], leading=z["table"] * 1.25),
-        "cell_head": ParagraphStyle("cell_head", fontName=bold, fontSize=z["table"], leading=z["table"] * 1.25),
+                               spaceAfter=body_gap, textColor=INK),
+        "bullet": ParagraphStyle("bullet", fontName=font, fontSize=z["body"], leading=z["leading"], textColor=INK),
+        "code": ParagraphStyle("code", fontName="Courier", fontSize=z["code"], leading=z["code"] * 1.35,
+                               textColor=NAVY),
+        "cell": ParagraphStyle("cell", fontName=font, fontSize=z["table"], leading=z["table"] * 1.25, textColor=INK),
+        "cell_head": ParagraphStyle("cell_head", fontName=bold, fontSize=z["table"], leading=z["table"] * 1.25,
+                                    textColor=colors.white),
         "footnote": ParagraphStyle("footnote", fontName=font, fontSize=FOOTNOTE_PT, leading=FOOTNOTE_PT * 1.3,
-                                   textColor=GREY, spaceBefore=z["body"]),
+                                   textColor=MUTED, spaceBefore=z["body"]),
     }
 
 
@@ -209,24 +220,27 @@ def _plain(markup: str) -> str:
     return re.sub(r"<[^>]+>", "", markup).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
 
-def _table(header, body, line, st, font, width) -> Table:
+def _table(header, body, line, st, font, width, row_pad=(2.5, 3)) -> Table:
     bold = tt2ps(font, 1, 0)
     marked = [[inline(c, line, font) for c in header]] + [[inline(c, line + 2 + k, font) for c in r]
                                                          for k, r in enumerate(body)]
     size = st["cell"].fontSize
     natural = [max(stringWidth(_plain(row[j]), bold if r == 0 else font, size) for r, row in enumerate(marked))
-               + 2 * TABLE_PAD + 2 for j in range(len(header))]
+               + 2 * (TABLE_PAD + 1) + 2 for j in range(len(header))]
     scale = min(1.0, width / sum(natural))
     widths = [w * scale for w in natural]
     data = [[Paragraph(c, st["cell_head"] if r == 0 else st["cell"]) for c in row] for r, row in enumerate(marked)]
     t = Table(data, colWidths=widths, hAlign="LEFT", repeatRows=1)
     t.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.25, GREY),  # D.2: 0.25 pt grey grid
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), TABLE_PAD),
-        ("RIGHTPADDING", (0, 0), (-1, -1), TABLE_PAD),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ("BACKGROUND", (0, 0), (-1, 0), NAVY),  # header row
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PANEL]),  # zebra body rows
+        ("LINEBELOW", (0, 0), (-1, -1), 0.25, RULE),  # D.2: 0.25 pt grid, now horizontal rules only
+        ("BOX", (0, 0), (-1, -1), 0.25, RULE),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), TABLE_PAD + 1),
+        ("RIGHTPADDING", (0, 0), (-1, -1), TABLE_PAD + 1),
+        ("TOPPADDING", (0, 0), (-1, -1), row_pad[0]),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), row_pad[1]),
     ]))
     t.spaceAfter = st["body"].spaceAfter
     # keep each table on 1 page; every table here is short, so it moves whole rather than splitting
@@ -262,6 +276,8 @@ def story(blocks: list[Block], cfg, kind: str, image_height_cm: float | None, wi
             out.append(Paragraph(inline(b.content, b.line, font), st["title"]))
             out.append(Paragraph(_escape(f"{cfg.deliverable.author} · {cfg.deliverable.date_label}"),
                                  st["header"]))
+            out.append(HRFlowable(width="100%", thickness=1.2, color=TEAL, spaceBefore=2,
+                                  spaceAfter=st["body"].fontSize, hAlign="LEFT"))
         elif b.kind == "heading":
             out.append(Paragraph(inline(b.content, b.line, font), st["heading"]))
         elif b.kind == "para":
@@ -270,13 +286,23 @@ def story(blocks: list[Block], cfg, kind: str, image_height_cm: float | None, wi
             items = [ListItem(Paragraph(inline(t, n, font), st["bullet"]), leftIndent=st["body"].fontSize * 1.4)
                      for n, t in b.content]
             out.append(ListFlowable(items, bulletType="bullet", start="•", bulletFontName=font,
-                                    bulletFontSize=st["body"].fontSize, leftIndent=st["body"].fontSize * 1.4,
-                                    spaceAfter=st["body"].spaceAfter))
+                                    bulletFontSize=st["body"].fontSize, bulletColor=TEAL,
+                                    leftIndent=st["body"].fontSize * 1.4, spaceAfter=st["body"].spaceAfter))
         elif b.kind == "table":
             header, body = b.content
-            out.append(_table(header, body, b.line, st, font, width))
+            out.append(_table(header, body, b.line, st, font, width, SIZES[kind]["row_pad"]))
         elif b.kind == "code":
-            out.append(Preformatted("\n".join(b.content), st["code"]))
+            pre = Preformatted("\n".join(b.content), st["code"])
+            panel = Table([[pre]], colWidths=[width], hAlign="LEFT")
+            panel.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), PANEL),
+                ("LINEBEFORE", (0, 0), (0, -1), 2, TEAL),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            panel.spaceAfter = st["body"].spaceAfter
+            out.append(panel)
         elif b.kind == "image":
             _alt, rel = b.content
             path = Path(cfg.root) / rel
@@ -290,8 +316,16 @@ def story(blocks: list[Block], cfg, kind: str, image_height_cm: float | None, wi
 def _footer(cfg, total: int):
     def draw(canvas, doc):
         canvas.saveState()
+        w, h = A4
+        canvas.setFillColor(NAVY)
+        canvas.rect(0, h - BAND_PT, w, BAND_PT, stroke=0, fill=1)  # band across the top
+        canvas.setFillColor(TEAL)
+        canvas.rect(0, h - BAND_PT - 1.5, w, 1.5, stroke=0, fill=1)  # thin teal line under it
+        canvas.setStrokeColor(RULE)
+        canvas.setLineWidth(0.4)
+        canvas.line(MARGIN, MARGIN / 2 + FOOTER_PT + 2, w - MARGIN, MARGIN / 2 + FOOTER_PT + 2)
         canvas.setFont(cfg.deliverable.font, FOOTER_PT)
-        canvas.setFillColor(GREY)
+        canvas.setFillColor(MUTED)
         y = MARGIN / 2
         canvas.drawString(MARGIN, y, cfg.deliverable.repo_url)
         canvas.drawRightString(A4[0] - MARGIN, y, f"page {doc.page} of {total}")
