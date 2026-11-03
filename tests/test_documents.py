@@ -91,13 +91,13 @@ def render_recorded(folder: Path) -> tuple[dict, pd.DataFrame, dict]:
 def test_recorded_state_renders(tmp_path):
     docs, claims, blocks = render_recorded(tmp_path / "outputs")
     table = blocks["eval_table"]
-    assert table.splitlines()[0] == "| category | questions | governed system | plain text-to-SQL |"
+    assert table.splitlines()[0] == "| category | questions | compiled approach | direct SQL |"
     assert table.splitlines()[2] == "| simple | 10 | 9 (90%) | 7 (70%) |"
     assert table.splitlines()[-1] == "| total | 40 | 34 (85%) | 18 (45%) |"
     for doc, text in docs.items():
         assert "{{" not in text, doc
         assert table in text, doc
-        assert "hasn't been recorded" not in text and "hasn't been run" not in text, doc
+        assert "in this copy" not in text, doc
     assert "34 of 40 (85.0%" in docs["README.md"]
     assert check_documents(docs, claims, blocks, True) == {doc: [] for doc in DOCUMENTS}
 

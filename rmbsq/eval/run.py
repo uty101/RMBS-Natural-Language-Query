@@ -1,4 +1,4 @@
-"""Runs the governed system and the baseline over the eval items (kickoff 6.11; instruction
+"""Runs the compiled approach and the direct SQL baseline over the eval items (kickoff 6.11; instruction
 05 D). Step 5.0 (items), step 5.3 (runs).
 
 `eval/questions.yaml` is copied byte for byte from instruction 05. Each item has `id`,

@@ -24,21 +24,21 @@ def test_summary_template_pending():
     assert check_documents(docs, claims, blocks, False) == {DOC: []}
     # the {{#eval}} body is absent, the {{^eval}} body present
     assert "Same 40 questions" not in text and "Accuracy by category" not in text
-    assert "hasn't been recorded in this copy" in text
+    assert "hasn't been run in this copy" in text
     assert blocks["trap_table"] in text
 
 
 def test_trap_table():
     table = trap_table(pd.read_csv(OUT / "trap_effects.csv", dtype=str, keep_default_na=False))
     lines = table.splitlines()
-    assert lines[0] == "| trap | question | correct | naive mistake gives |"
+    assert lines[0] == "| mistake | question | correct | with the mistake |"
     rows = [[c.strip() for c in line.strip("|").split("|")] for line in lines[2:]]
     assert len(rows) == 6
     by_q = {r[1]: r for r in rows}
     assert by_q["Q29"][2:] == ["21.6%", "100.0%"]
     assert by_q["Q32"][2:] == ["9,975", "10,572"]
-    assert by_q["Q29"][0] == "Calls as prepayments"
-    assert rows[-1] == ["Averaging CPR (dropped, gap too small)", "Q2 2025 CPR", "18.064%", "18.063%"]
+    assert by_q["Q29"][0] == "Clean-up calls counted as prepayments"
+    assert rows[-1] == ["Monthly CPR averaged, not compounded (dropped)", "Q2 2025 CPR", "18.064%", "18.063%"]
 
 
 def test_clarify_transcript_recorded(tmp_path):

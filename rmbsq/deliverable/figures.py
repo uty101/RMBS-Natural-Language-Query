@@ -28,7 +28,7 @@ from rmbsq.semantic.spec import QuerySpec  # noqa: E402
 DPI = 150
 SIZE = (8.0, 4.5)
 SAVE = {"dpi": DPI, "metadata": {"Software": None}}
-SYSTEM_LABELS = {"system": "governed system", "baseline": "plain text-to-SQL"}
+SYSTEM_LABELS = {"system": "compiled approach", "baseline": "direct SQL"}
 
 ARREARS_BY_VINTAGE = QuerySpec.model_validate({
     "intent": "answer", "metrics": ["arrears_90p_bal"], "group_by": ["vintage_year"],
@@ -109,7 +109,7 @@ def scale_figure(outputs: Path) -> Path:
     ax.yaxis.set_minor_formatter(FuncFormatter(_seconds))
     ax.set_xticks(list(x), wide["item_id"], rotation=90, fontsize=7)
     ax.set_ylabel("median query time (s)")
-    ax.set_title("Query time per eval question, 1x and 36x data")
+    ax.set_title("Query time per test question, at 1x and 36x data volume")
     ax.legend(fontsize=8, loc="upper left")
     return _save(fig, outputs, "scale")
 
@@ -129,7 +129,7 @@ def eval_figure(outputs: Path) -> Path:
     ax.set_xticks(range(len(categories)), categories)
     ax.set_ylim(0, 1)
     ax.yaxis.set_major_formatter(PercentFormatter(1.0))
-    ax.set_ylabel("correct")
+    ax.set_ylabel("share correct")
     ax.legend(fontsize=8, loc="upper right")
     return _save(fig, outputs, "eval")
 

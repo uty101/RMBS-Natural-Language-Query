@@ -1,4 +1,4 @@
-"""Run the eval: the governed system and the baseline on the 40 items (step 5.3; instruction 05 D).
+"""Run the eval: the compiled approach and the direct SQL baseline on the 40 items (step 5.3; instruction 05 D).
 
     python scripts/run_eval.py --mode {record,replay}
 

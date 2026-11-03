@@ -29,14 +29,14 @@ PDFS = {"design": ("docs/DESIGN_RESPONSE.md", "deliverable/Design_Response.pdf")
         "summary": ("deliverable/results_summary.md", "deliverable/Results_Summary.pdf")}
 TEMPLATE_OF = DOCUMENTS | SUMMARY
 FIXED = TEMPLATES / "fixed_numbers.txt"
-TABLE_SYSTEMS = [("system", "governed system"), ("baseline", "plain text-to-SQL")]
+TABLE_SYSTEMS = [("system", "compiled approach"), ("baseline", "direct SQL")]
 # instruction 07 C.1: trap -> (label, value format); pct3 is x 100, 3 dp and %
 TRAP_ROWS = {
-    "arrears_units": ("Arrears units", "pct2"),
-    "call_as_prepay": ("Calls as prepayments", "pct1"),
-    "exit_rows": ("Exit rows as live loans", "int"),
-    "weighting": ("Unweighted average", "pct2"),
-    "compounding": ("Averaging CPR (dropped, gap too small)", "pct3"),
+    "arrears_units": ("2 missed payments read as 60+ days", "pct2"),
+    "call_as_prepay": ("Clean-up calls counted as prepayments", "pct1"),
+    "exit_rows": ("Exit month counted as a live loan", "int"),
+    "weighting": ("Simple average, not balance-weighted", "pct2"),
+    "compounding": ("Monthly CPR averaged, not compounded (dropped)", "pct3"),
 }
 TRAP_FORMATS = FORMATS | {"pct3": lambda v: f"{float(v) * 100:.3f}%"}
 TRAP_QUESTION = {"Q2_2025": "Q2 2025 CPR"}
@@ -66,7 +66,7 @@ def eval_table(summary: pd.DataFrame) -> str:
 
 def trap_table(traps: pd.DataFrame) -> str:
     """C.1: 1 row per trap_effects.csv row, in CSV order."""
-    lines = ["| trap | question | correct | naive mistake gives |", "|---|---|---|---|"]
+    lines = ["| mistake | question | correct | with the mistake |", "|---|---|---|---|"]
     for r in traps.itertuples(index=False):
         label, fmt = TRAP_ROWS[r.trap]
         show = TRAP_FORMATS[fmt]

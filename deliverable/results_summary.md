@@ -1,34 +1,34 @@
-# Asking RMBS loan data questions in plain English: results
+# Querying RMBS trustee data in natural language: results
 
-A language model turns each question into a small query spec, and a compiler turns the spec into SQL over governed metric definitions, so the model never does the arithmetic. These results are from a working prototype on synthetic data: 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months in 2 trustee formats.
+A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. These results come from a working prototype on synthetic data: 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months, in 2 trustee formats.
 
-## What is proved
+## Test results
 
-| check | result |
+| test | result |
 |---|---|
-| Cleaning: canonical table against simulated truth | 0 mismatches over 773,336 loan-months |
-| Cleaning: resubmitted duplicates removed | 721 of 774,057 raw rows |
-| Cleaning: clean-up calls coded as repayments, recovered | 7 deals |
-| Compiler: output against hand-written SQL | 49 of 49 match, worst difference 1.6e-15 |
-| Compiler: queries that render to Oracle | 49 of 49 |
-| Scale: slowest question at 27,840,096 loan-months | under 0.75 s with default threads |
+| Cleaned table against simulated truth | 0 differences across 773,336 loan-months |
+| Resubmitted duplicates removed | 721 of 774,057 raw rows |
+| Clean-up calls reported as repayments, recovered | 7 deals |
+| Compiler output against hand-written SQL | 49 of 49 match, worst difference 1.6e-15 |
+| Compiled queries valid for Oracle | 49 of 49 |
+| Slowest question at 27,840,096 loan-months | under 0.75 s, default threads |
 
-## The traps in the questions, measured on this data
+## What common mistakes do to the numbers
 
-| trap | question | correct | naive mistake gives |
+| mistake | question | correct | with the mistake |
 |---|---|---|---|
-| Arrears units | Q27 | 0.66% | 0.59% |
-| Calls as prepayments | Q29 | 21.6% | 100.0% |
-| Calls as prepayments | Q30 | 18.3% | 49.0% |
-| Exit rows as live loans | Q32 | 9,975 | 10,572 |
-| Unweighted average | Q33 | 51.96% | 50.92% |
-| Averaging CPR (dropped, gap too small) | Q2 2025 CPR | 18.064% | 18.063% |
+| 2 missed payments read as 60+ days | Q27 | 0.66% | 0.59% |
+| Clean-up calls counted as prepayments | Q29 | 21.6% | 100.0% |
+| Clean-up calls counted as prepayments | Q30 | 18.3% | 49.0% |
+| Exit month counted as a live loan | Q32 | 9,975 | 10,572 |
+| Simple average, not balance-weighted | Q33 | 51.96% | 50.92% |
+| Monthly CPR averaged, not compounded (dropped) | Q2 2025 CPR | 18.064% | 18.063% |
 
-## Governed system against plain text-to-SQL
+## Compared with direct SQL
 
-Same 40 questions. The plain model's prompt held the same table definitions and written metric formulas. Neither system returned a wrong number: every miss on both sides was a refusal. The governed system asked on every ambiguous question, where plain SQL declined without saying why.
+Same 40 questions, with the same table and metric definitions in the direct SQL model's prompt. Neither approach returned an incorrect number; every miss on both sides was a refusal to answer. On ambiguous questions, the compiled approach asked what was meant, where direct SQL declined without explanation.
 
-| category | questions | governed system | plain text-to-SQL |
+| category | questions | compiled approach | direct SQL |
 |---|---|---|---|
 | simple | 10 | 9 (90%) | 10 (100%) |
 | grouped | 10 | 10 (100%) | 10 (100%) |
@@ -40,7 +40,7 @@ Same 40 questions. The plain model's prompt held the same table definitions and 
 
 ![Accuracy by category](outputs/figures/eval_accuracy.png)
 
-Asked "What are arrears in NSW?", the governed system replied:
+Asked "What are arrears in NSW?", the compiled approach replied:
 
     Which arrears measure do you want for NSW?
     Options: 30+ days past due; 90+ days past due
