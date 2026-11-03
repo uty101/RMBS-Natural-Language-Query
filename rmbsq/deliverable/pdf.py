@@ -40,7 +40,6 @@ MUTED = colors.HexColor("#64748B")
 RULE = colors.HexColor("#CBD5E1")
 PANEL = colors.HexColor("#F1F5F9")
 BAND_PT = 6  # height of the navy band across the top of every page
-FOOTNOTE = "All figures are generated from CSV files committed in the repo. The data is synthetic."  # D.2
 DESIGN_IMAGE_MAX_CM = 8.0  # D.2
 SUMMARY_IMAGE_START_CM, SUMMARY_IMAGE_STEP_CM, SUMMARY_IMAGE_MIN_CM = 5.5, 0.5, 3.5  # D.3
 
@@ -308,8 +307,6 @@ def story(blocks: list[Block], cfg, kind: str, image_height_cm: float | None, wi
             path = Path(cfg.root) / rel
             out.append(_image(path, kind, width, image_height_cm))
             out.append(Spacer(1, st["body"].spaceAfter))
-    if kind == "design":
-        out.append(Paragraph(_escape(FOOTNOTE), st["footnote"]))
     return out
 
 
