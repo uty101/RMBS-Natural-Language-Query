@@ -78,6 +78,8 @@ def render_recorded(folder: Path) -> tuple[dict, pd.DataFrame, dict]:
     folder.mkdir(parents=True, exist_ok=True)
     for name in SUMMARY_SOURCES:
         shutil.copy(OUT / name, folder / name)
+    # the committed results, which the instruction 09 C claims count
+    shutil.copy(OUT / "eval_results.csv", folder / "eval_results.csv")
     made_up_eval_summary(folder / "eval_summary.csv")
     made_up_eval_detail(folder / "eval_detail.jsonl")
     assert eval_recorded(folder)

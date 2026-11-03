@@ -6,7 +6,12 @@ All data in this repo is synthetic: 50 Australian RMBS deals, 21,945 loans and 7
 
 ## Results
 
-**Governed system against plain text-to-SQL, same 40 questions.** The governed system got 37 of 40 (92.5%, 95% interval 80.1% to 97.4%); plain text-to-SQL got 35 of 40 (87.5%, interval 73.9% to 94.5%). The plain model was given the same table definitions, the same written metric formulas and the exact output column names for each question. That favours it.
+**Governed system against plain text-to-SQL, same 40 questions.** On the 34 questions with a numeric answer, plain text-to-SQL got 33 right and the governed system 31. Neither returned a wrong number (0 and 0), so every miss on both sides was a refusal.
+
+- The governed system couldn't resolve "Queensland", and asked for a day threshold on questions phrased in missed payments.
+- Plain SQL declined all 4 ambiguous questions where the governed system asked.
+
+Overall, the governed system got 37 of 40 (92.5%, 95% interval 80.1% to 97.4%) and plain SQL 35 of 40 (87.5%, interval 73.9% to 94.5%). The plain model's prompt held the full written metric definitions and the exact output columns, so this compares 2 ways of delivering the same definitions, not definitions against none. The full reading is in the design response.
 
 | category | questions | governed system | plain text-to-SQL |
 |---|---|---|---|

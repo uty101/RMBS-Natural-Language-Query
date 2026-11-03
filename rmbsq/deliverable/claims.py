@@ -3,7 +3,7 @@
 `build_claims` reads the summary CSVs in `outputs/` and writes `deliverable/claims.csv`
 with 1 row per claim: the raw value, the display string placed in documents, the source
 CSV and the rule. The eval claims are built only in the recorded state, from
-`eval_summary.csv`.
+`eval_summary.csv`, and from `eval_results.csv` with `eval/questions.yaml` (instruction 09 C).
 """
 
 from __future__ import annotations
@@ -13,10 +13,12 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 from rmbsq.semantic.catalog import ROOT
 
 OUTPUTS = ROOT / "outputs"
+QUESTIONS = ROOT / "eval" / "questions.yaml"
 CLAIMS_CSV = ROOT / "deliverable" / "claims.csv"
 COLUMNS = ["claim_id", "value", "display", "source_file", "source_rule"]
 GOLD_MATCH_TOL = 1e-9  # instruction 06 D: gold_matched counts max_scaled_diff <= 1e-9
@@ -97,7 +99,7 @@ def _claims(outputs: Path) -> list[tuple]:
     return rows
 
 
-def _eval_claims(outputs: Path) -> list[tuple]:
+def _eval_claims(outputs: Path, questions: Path) -> list[tuple]:
     summary = _csv(outputs / "eval_summary.csv")
     row = {(s, c): r for s, c, r in zip(summary["system"], summary["category"], summary.to_dict("records"))}
     rows = []
@@ -118,7 +120,35 @@ def _eval_claims(outputs: Path) -> list[tuple]:
         value = int(row[(system, category)]["k"])
         rows.append((claim_id, value, FORMATS["int"](value), "outputs/eval_summary.csv",
                      f"k of category {category}, system {system}"))
-    return rows
+    return rows + _eval_result_claims(outputs, questions)
+
+
+def _eval_result_claims(outputs: Path, questions: Path) -> list[tuple]:
+    """Instruction 09 C: counts over eval_results.csv rows; an answer item has expected_intent answer."""
+    with open(questions, encoding="utf-8") as f:
+        answer_ids = {r["id"] for r in yaml.safe_load(f)["items"] if r["expected_intent"] == "answer"}
+    results = _csv(outputs / "eval_results.csv")
+    on_answer = results[results["item_id"].isin(answer_ids)]
+    sys_rows, base_rows = (results[results["system"] == s] for s in ["system", "baseline"])
+    sys_answer, base_answer = (on_answer[on_answer["system"] == s] for s in ["system", "baseline"])
+    wrong = lambda df, intent: df[(df["intent"] == intent) & (df["error"] == "") & (df["correct"] == "False")]  # noqa: E731
+    source = "outputs/eval_results.csv"
+    counts = [
+        ("answer_n", len(answer_ids), "eval/questions.yaml", "number of items with expected_intent answer"),
+        ("sys_answer_k", int((sys_answer["correct"] == "True").sum()), source,
+         "system rows on answer items with correct true"),
+        ("base_answer_k", int((base_answer["correct"] == "True").sum()), source,
+         "baseline rows on answer items with correct true"),
+        ("sys_wrong_numbers", len(wrong(sys_answer, "answer")), source,
+         "system rows on answer items with intent answer, an empty error and correct false"),
+        ("base_wrong_numbers", len(wrong(base_answer, "sql")), source,
+         "baseline rows on answer items with intent sql, an empty error and correct false"),
+        ("base_ambig_declined", int(((base_rows["category"] == "ambiguous") & (base_rows["intent"] == "decline")).sum()),
+         source, "baseline rows in category ambiguous with intent decline"),
+        ("sys_clarified_traps", int(((sys_rows["category"] == "trap") & (sys_rows["intent"] == "clarify")).sum()),
+         source, "system rows in category trap with intent clarify"),
+    ]
+    return [(claim_id, value, FORMATS["int"](value), src, rule) for claim_id, value, src, rule in counts]
 
 
 def _value_cell(v) -> str:
@@ -135,10 +165,11 @@ def write_claims(df: pd.DataFrame, path: Path) -> None:
             w.writerow([row.claim_id, _value_cell(row.value), row.display, row.source_file, row.source_rule])
 
 
-def build_claims(eval_recorded: bool, outputs: Path = OUTPUTS, out: Path | None = CLAIMS_CSV) -> pd.DataFrame:
+def build_claims(eval_recorded: bool, outputs: Path = OUTPUTS, out: Path | None = CLAIMS_CSV,
+                 questions: Path = QUESTIONS) -> pd.DataFrame:
     rows = _claims(Path(outputs))
     if eval_recorded:
-        rows += _eval_claims(Path(outputs))
+        rows += _eval_claims(Path(outputs), Path(questions))
     df = pd.DataFrame(rows, columns=COLUMNS, dtype=object)
     if out is not None:
         write_claims(df, Path(out))

@@ -56,7 +56,17 @@ The prototype runs the whole design end to end on synthetic data built to carry 
 
 **Size isn't the problem.** Copied 36 times to 27,840,096 loan-months, each of the 34 answerable eval questions runs in under 0.75 seconds on 1 machine with DuckDB's default threads. The slowest, on a single thread, takes 3.34 seconds. These are DuckDB timings; Oracle timings depend on partitioning and indexes, and I didn't measure them.
 
-**Against plain text-to-SQL.** On the same 40 questions, the governed system got 37 of 40 right (92.5%, 95% interval 80.1% to 97.4%). A model writing SQL directly got 35 of 40 (87.5%, interval 73.9% to 94.5%), even though it was given the same table definitions and the same written metric formulas. On the 8 trap questions, the governed system got 6 right and the plain model got 7. The plain model has no way to ask a clarifying question, so it gets 0 of the 4 ambiguous questions by design; the governed system asked on 4 of them.
+**Against plain text-to-SQL.** I ran the same 40 questions through a second setup: a model writing DuckDB SQL directly over the same clean tables, with the same written metric definitions in its prompt. The result is closer than the argument above suggests, so here it is plainly.
+
+On the 34 questions with a numeric answer, plain text-to-SQL got 33 right and the governed system got 31. Neither returned a wrong number: 0 from plain SQL and 0 from the governed system. Every miss on both sides was a refusal.
+
+- The governed system couldn't resolve a state written in full ("Queensland", stored as QLD).
+- On the 2 questions phrased in missed payments, it asked which day threshold was meant rather than mapping payments to days.
+- On the 4 ambiguous questions, the governed system asked a clarifying question each time. Plain SQL declined all 4 without saying why, which the scoring counts as wrong.
+
+In total, the governed system got 37 of 40 (92.5%, 95% interval 80.1% to 97.4%) and plain SQL 35 of 40 (87.5%, interval 73.9% to 94.5%). The intervals overlap almost entirely.
+
+What I take from it: on clean tables, the metric definitions do most of the work, whether a compiler applies them or a prompt carries them. The plain model did this well only because its prompt held the semantic layer written out as prose, and that copy has to be kept in step with the real definitions by hand. What the governed design adds is what this eval doesn't score: 1 definition per metric used everywhere, a receipt on every answer, a guard on every narrated number, and a question back to the user instead of a silent refusal. The eval didn't test plain SQL against the raw trustee tables, which is where the traps below would bite.
 
 | category | questions | governed system | plain text-to-SQL |
 |---|---|---|---|
@@ -76,6 +86,8 @@ The 8 trap questions target mistakes that look fine in SQL and are wrong in cred
 - counting exit rows as live loans adds 597 phantom loans to the pool in November 2025;
 - a simple average instead of balance weighting moves the pool's LVR from 51.96% to 50.92%.
 
+With the definitions written into its prompt, plain text-to-SQL avoided these traps too (7 of 8, against 6 for the governed system). So they measure what a writer without the definitions gets wrong, not what the governed design adds on top.
+
 A fourth candidate, averaging monthly CPR instead of compounding it, was dropped: at the pool's prepayment rate of 18.1%, the 2 methods differ by 1.2e-05, so it couldn't tell a careful system from a careless one.
 
 ## What I'd build next, and the limits
@@ -89,7 +101,7 @@ Next comes a set of analysis tools beyond aggregation:
 
 The last needs care. From 2022 to 2024, rate rises pushed arrears up and house prices down in the same suburbs at the same time, so a naive regression would credit house prices with a rate effect. That tool should control for payment shock and say plainly what it can't separate.
 
-The eval set should also grow from real usage: log every question, and add every failure.
+The eval set should also grow from real usage: log every question, and add every failure. The first fix it points to is aliases for state names written in full.
 
 The limits:
 

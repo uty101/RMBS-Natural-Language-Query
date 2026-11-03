@@ -13,14 +13,14 @@ A language model turns each question into a small query spec, and a compiler tur
 | Compiler: queries that render to Oracle | {{oracle_ok}} of {{gold_total}} |
 | Scale: slowest question at {{rows_36x}} loan-months | under {{x36_max_default_s}} s with default threads |
 
-## The traps a plain SQL writer falls into
+## The traps in the questions, measured on this data
 
 {{trap_table}}
 
 {{#eval}}
 ## Governed system against plain text-to-SQL
 
-Same 40 questions. The plain model was given the same table definitions, the same written metric formulas and the exact output columns.
+Same 40 questions. The plain model's prompt held the same table definitions and written metric formulas. Neither system returned a wrong number: every miss on both sides was a refusal. The governed system asked on every ambiguous question, where plain SQL declined without saying why.
 
 {{eval_table}}
 

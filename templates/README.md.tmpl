@@ -7,7 +7,12 @@ All data in this repo is synthetic: {{n_deals}} Australian RMBS deals, {{n_loans
 ## Results
 
 {{#eval}}
-**Governed system against plain text-to-SQL, same 40 questions.** The governed system got {{sys_total_k}} of {{sys_total_n}} ({{sys_total_pct}}, 95% interval {{sys_total_lo}} to {{sys_total_hi}}); plain text-to-SQL got {{base_total_k}} of {{base_total_n}} ({{base_total_pct}}, interval {{base_total_lo}} to {{base_total_hi}}). The plain model was given the same table definitions, the same written metric formulas and the exact output column names for each question. That favours it.
+**Governed system against plain text-to-SQL, same 40 questions.** On the {{answer_n}} questions with a numeric answer, plain text-to-SQL got {{base_answer_k}} right and the governed system {{sys_answer_k}}. Neither returned a wrong number ({{base_wrong_numbers}} and {{sys_wrong_numbers}}), so every miss on both sides was a refusal.
+
+- The governed system couldn't resolve "Queensland", and asked for a day threshold on questions phrased in missed payments.
+- Plain SQL declined all {{base_ambig_declined}} ambiguous questions where the governed system asked.
+
+Overall, the governed system got {{sys_total_k}} of {{sys_total_n}} ({{sys_total_pct}}, 95% interval {{sys_total_lo}} to {{sys_total_hi}}) and plain SQL {{base_total_k}} of {{base_total_n}} ({{base_total_pct}}, interval {{base_total_lo}} to {{base_total_hi}}). The plain model's prompt held the full written metric definitions and the exact output columns, so this compares 2 ways of delivering the same definitions, not definitions against none. The full reading is in the design response.
 
 {{eval_table}}
 

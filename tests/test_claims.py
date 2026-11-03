@@ -1,5 +1,7 @@
-"""Step 6.2: claims traced to the committed CSVs (instruction 06 D, J 6.2)."""
+"""Step 6.2: claims traced to the committed CSVs (instruction 06 D, J 6.2). Step 9.1: the
+eval claims added by instruction 09 C, and the facts the eval prose names."""
 
+import json
 import math
 from pathlib import Path
 
@@ -67,3 +69,31 @@ def test_claims_pending(tmp_path):
     assert float(display["x36_max_default_s"]) >= expected["x36_max_default_s"]
     assert float(display["x36_max_default_s"]) - expected["x36_max_default_s"] < 0.01
     assert display["x36_max_single_s"] == f"{expected['x36_max_single_s']:.2f}"
+
+
+# instruction 09 C: expected values in the recorded state
+NEW_EVAL_CLAIMS = {"answer_n": 34, "sys_answer_k": 31, "base_answer_k": 33, "sys_wrong_numbers": 0,
+                   "base_wrong_numbers": 0, "base_ambig_declined": 4, "sys_clarified_traps": 2}
+
+
+def test_new_eval_claims():
+    claims = build_claims(True, out=None)
+    got = {c: (v, d) for c, v, d in zip(claims["claim_id"], claims["value"], claims["display"]) if c in NEW_EVAL_CLAIMS}
+    assert got == {c: (v, str(v)) for c, v in NEW_EVAL_CLAIMS.items()}
+
+
+def test_eval_prose_conditions():
+    """Instruction 09 D 9.1: the facts the eval prose names. A re-record that changes them fails here."""
+    results = pd.read_csv(OUT / "eval_results.csv", dtype=str, keep_default_na=False)
+    wrong = results[results["correct"] == "False"]
+    sys_wrong = wrong[wrong["system"] == "system"]
+    assert dict(zip(sys_wrong["item_id"], sys_wrong["intent"])) == {"Q09": "unsupported", "Q27": "clarify",
+                                                                      "Q28": "clarify"}
+    detail = [json.loads(line) for line in (OUT / "eval_detail.jsonl").read_text(encoding="utf-8").splitlines()]
+    q09 = [r for r in detail if r["system"] == "system" and r["item_id"] == "Q09"]
+    assert len(q09) == 1 and "Queensland" in q09[0]["spec"]["unsupported_reason"]
+    base_wrong = wrong[wrong["system"] == "baseline"]
+    assert len(base_wrong) > 0 and set(base_wrong["intent"]) == {"decline"}
+    claims = build_claims(True, out=None)
+    value = dict(zip(claims["claim_id"], claims["value"]))
+    assert value["sys_wrong_numbers"] == 0 and value["base_wrong_numbers"] == 0

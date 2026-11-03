@@ -40,3 +40,10 @@ base_total_hi,0.9454058023,94.5%,outputs/eval_summary.csv,"wilson_hi of category
 sys_trap_k,6,6,outputs/eval_summary.csv,"k of category trap, system system"
 base_trap_k,7,7,outputs/eval_summary.csv,"k of category trap, system baseline"
 sys_ambig_k,4,4,outputs/eval_summary.csv,"k of category ambiguous, system system"
+answer_n,34,34,eval/questions.yaml,number of items with expected_intent answer
+sys_answer_k,31,31,outputs/eval_results.csv,system rows on answer items with correct true
+base_answer_k,33,33,outputs/eval_results.csv,baseline rows on answer items with correct true
+sys_wrong_numbers,0,0,outputs/eval_results.csv,"system rows on answer items with intent answer, an empty error and correct false"
+base_wrong_numbers,0,0,outputs/eval_results.csv,"baseline rows on answer items with intent sql, an empty error and correct false"
+base_ambig_declined,4,4,outputs/eval_results.csv,baseline rows in category ambiguous with intent decline
+sys_clarified_traps,2,2,outputs/eval_results.csv,system rows in category trap with intent clarify
