@@ -23,24 +23,24 @@ Each answer comes with the spec, the Oracle SQL and the result table, so an anal
 - A clean-up call can be reported as an ordinary repayment.
 - Corrected months are resubmitted on top of the originals.
 
-The first layer is therefore a single canonical loan-month table, with a stable loan key and a separate exit reason for each loan, whether prepayment, repurchase, default or call. Indexed LVR is computed once, as current balance over original valuation scaled by the suburb house price index, and stored as a column. Without this layer, a clean-up call will eventually show up as a wave of prepayments and a CPR spike that never happened.
+So the first step is to bring every trustee's data into 1 standard table, where each loan keeps the same ID over time and the reason it left the pool is recorded properly, whether it was repaid early, bought back, defaulted or called. Current LVR is worked out once, by updating each property's value with local house prices, and saved alongside the loan. Skip this step, and sooner or later a clean-up call will look like a rush of early repayments, and the prepayment rate will jump for no real reason.
 
 **2. Define each metric once.** Every metric lives in code with a single definition. 90+ arrears are measured by balance and exclude hardship, CPR counts voluntary prepayments only and is compounded over the period, and indexed LVR is weighted by balance.
 
 The dimensions (deal, originator, vintage, state, suburb, LVR band, rate type, interest only) are listed with their allowed values. The model can only choose from these lists, so it can't make up a metric.
 
-**3. The model writes a spec, not SQL.** The spec has a fixed shape, with 1 to 3 metrics, up to 2 groupings, filters, a date range and an optional ranking. Filling in a form like this is far more reliable than writing correct window functions over a loan panel that shrinks as loans repay. The spec is validated before anything runs.
+**3. The model writes a spec, not SQL.** The spec has a fixed shape, with 1 to 3 metrics, up to 2 groupings, filters, a date range and an optional ranking. Filling in a short form is much easier to get right than writing complex SQL from scratch, especially over a pool that shrinks every month as loans repay. The form is checked before anything runs.
 
 **4. Match names, then compile.**
 
 - People write deal and place names loosely, such as "Harbour 21-1", "blacktown" or "HARB21-1". Exact matches and known aliases resolve directly, close misspellings resolve by score, and a name that fits several values comes back as a question.
-- The compiler then produces 1 SQL statement for DuckDB, and renders the same statement for Oracle using only constructs Oracle supports.
+- The compiler then writes the query. The same query is produced in a version Oracle can run, using only features Oracle supports.
 
 **5. Write the answer from the result, then check it.** The answer text is written from the result table only. Every number in the text is checked against the table, and if any fails, the user gets a plain summary of the table instead.
 
 **6. Test it on a fixed question set.** A set of real questions with hand-checked answers runs after every change to the prompts, the model or a metric definition. It includes ambiguous questions, to confirm the system asks rather than guesses. Without this, the most you can say is that the system sounds right.
 
-**At 36 million rows,** most questions resolve to deal-month or monthly aggregates, so a small precomputed table answers them, with loan-level detail still available for drill-downs. In production this would run against a read-only replica, with query timeouts and per-deal permissions for anything under NDA.
+**At 36 million rows,** most questions only need totals by deal and month, so a small summary table, prepared in advance, answers them quickly. The full loan-level detail is still there when someone needs to dig in. In production, the system would only read from a copy of the database, never change it, with a time limit on every query and access controls for deals under NDA.
 
 ## What the prototype shows
 
@@ -48,9 +48,9 @@ The prototype runs the full design on synthetic data built with the same problem
 
 **The cleaning is tested row by row.** The raw trustee files hold 774,057 rows, including 721 resubmitted duplicates, and one format reports its 7 clean-up calls as ordinary repayments. After cleaning, the canonical table matches the simulated truth on all 773,336 loan-months, with 0 differences.
 
-**The compiler is tested against hand-written SQL.** 49 of 49 hand-written queries match the compiler's output, with a worst difference of 1.6e-15. Every compiled query renders to Oracle using only supported constructs.
+**The compiler is tested against hand-written SQL.** I wrote 49 queries by hand and compared them with what the compiler produced. All 49 gave the same answers, with the largest gap (1.6e-15) far too small to matter. Every compiled query also works in a form Oracle can run.
 
-**Volume isn't a problem.** With the data copied 36 times, to 27,840,096 loan-months, each of the 34 test questions with a numeric answer runs in under 0.75 seconds on 1 machine with DuckDB's default threads. The slowest single-threaded run takes 3.34 seconds. These are DuckDB timings. Oracle performance depends on partitioning and indexes, which I didn't test.
+**Volume isn't a problem.** With the data copied 36 times, to 27,840,096 loan-months, each of the 34 test questions with a numeric answer comes back in under 0.75 seconds on a single computer. Even with the computer limited to 1 processor core, the slowest takes 3.34 seconds. These timings come from DuckDB, the database used in the prototype. Speed on Oracle depends on how the tables are set up, which I didn't test.
 
 **Compared with direct SQL.** I ran the same 40 questions through a second setup, in which a model writes DuckDB SQL directly against the same clean tables, with the same metric definitions written into its prompt. The result was closer than the argument above implies.
 
@@ -84,7 +84,7 @@ The 8 trap questions target errors that produce valid SQL and wrong credit numbe
 
 With the definitions in its prompt, direct SQL avoided these too (7 of 8, against 6 for the compiled approach). So these questions show what goes wrong without the definitions, rather than what the compiled approach adds on top of them.
 
-I also considered averaging monthly CPR instead of compounding it, but dropped it. At the pool's prepayment rate of 18.1%, the 2 methods differ by only 1.2e-05, which is too small to tell a careful answer from a careless one.
+I also tested a fourth mistake, averaging the monthly prepayment rates instead of combining them properly, but dropped it. At the pool's prepayment rate of 18.1%, the right and wrong methods differ by only 1.2e-05, so the question couldn't tell a careful answer from a careless one.
 
 ## Next steps and limitations
 
