@@ -13,7 +13,7 @@ from pypdf import PdfReader
 ROOT = Path(__file__).resolve().parents[1]
 SELF = "tests/test_neutrality.py"
 EXCLUDED = ("instructions/", ".github/")
-PDFS = ["deliverable/Design_Response.pdf", "deliverable/Results_Summary.pdf"]
+PDFS = ["deliverable/RMBS_Query_Design_Note.pdf", "deliverable/RMBS_Query_Results.pdf"]
 BANNED = [
     "interview",
     "case study",

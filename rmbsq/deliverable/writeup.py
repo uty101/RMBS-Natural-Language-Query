@@ -25,8 +25,8 @@ from rmbsq.semantic.catalog import ROOT
 TEMPLATES = ROOT / "templates"
 DOCUMENTS = {"README.md": "README.md.tmpl", "docs/DESIGN_RESPONSE.md": "DESIGN_RESPONSE.md.tmpl"}
 SUMMARY = {"deliverable/results_summary.md": "RESULTS_SUMMARY.md.tmpl"}
-PDFS = {"design": ("docs/DESIGN_RESPONSE.md", "deliverable/Design_Response.pdf"),
-        "summary": ("deliverable/results_summary.md", "deliverable/Results_Summary.pdf")}
+PDFS = {"design": ("docs/DESIGN_RESPONSE.md", "deliverable/RMBS_Query_Design_Note.pdf"),
+        "summary": ("deliverable/results_summary.md", "deliverable/RMBS_Query_Results.pdf")}
 TEMPLATE_OF = DOCUMENTS | SUMMARY
 FIXED = TEMPLATES / "fixed_numbers.txt"
 TABLE_SYSTEMS = [("system", "compiled approach"), ("baseline", "direct SQL")]

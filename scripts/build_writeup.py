@@ -9,7 +9,7 @@
 5. README.md and docs/DESIGN_RESPONSE.md.
 6. The number check on both documents; any unexplained number fails the run.
 7. deliverable/results_summary.md, number-checked the same way (instruction 07 F).
-8. deliverable/Design_Response.pdf and deliverable/Results_Summary.pdf. A summary still
+8. deliverable/RMBS_Query_Design_Note.pdf and deliverable/RMBS_Query_Results.pdf. A summary still
    above 1 page at the smallest image height fails the run (instruction 07 D.3).
 9. Prints the state, the page counts, the summary image height and the files written.
 
@@ -76,14 +76,14 @@ def main() -> int:
     pdfs = write_pdfs(docs | summary, cfg, ROOT)
     written += pdfs["paths"]
     print(f"state: {'recorded' if recorded else 'pending'}")
-    print(f"Design_Response.pdf: {pdfs['design_pages']} pages (at most {cfg.deliverable.design_max_pages})")
-    print(f"Results_Summary.pdf: {pdfs['summary_pages']} pages (exactly {cfg.deliverable.summary_max_pages}), "
+    print(f"RMBS_Query_Design_Note.pdf: {pdfs['design_pages']} pages (at most {cfg.deliverable.design_max_pages})")
+    print(f"RMBS_Query_Results.pdf: {pdfs['summary_pages']} pages (exactly {cfg.deliverable.summary_max_pages}), "
           f"image height {pdfs['summary_image_height_cm']} cm")
     if pdfs["design_pages"] > cfg.deliverable.design_max_pages:
-        print(f"STOP: Design_Response.pdf has {pdfs['design_pages']} pages", file=sys.stderr)
+        print(f"STOP: RMBS_Query_Design_Note.pdf has {pdfs['design_pages']} pages", file=sys.stderr)
         return 1
     if pdfs["summary_pages"] != cfg.deliverable.summary_max_pages:
-        print(f"STOP: Results_Summary.pdf has {pdfs['summary_pages']} pages at "
+        print(f"STOP: RMBS_Query_Results.pdf has {pdfs['summary_pages']} pages at "
               f"{pdfs['summary_image_height_cm']} cm", file=sys.stderr)
         return 1
     for path in written:

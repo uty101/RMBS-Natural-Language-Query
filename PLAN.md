@@ -585,8 +585,8 @@ evidence: the Actions run URL and result (O-25).
 ## Section 7: the PDFs (`deliverable/`)
 
 Instruction 07 replaces the earlier plan for this section (O-43 (a)). It turns rendered
-markdown into 2 PDFs, `deliverable/Design_Response.pdf` from `docs/DESIGN_RESPONSE.md`
-(at most `design_max_pages` A4 pages) and `deliverable/Results_Summary.pdf` from a new
+markdown into 2 PDFs, `deliverable/RMBS_Query_Design_Note.pdf` from `docs/DESIGN_RESPONSE.md`
+(at most `design_max_pages` A4 pages) and `deliverable/RMBS_Query_Results.pdf` from a new
 template (exactly `summary_max_pages`). Chat Claude wrote all the prose; Claude Code
 writes no prose into either PDF. No API call is made. Both states of Section 6 carry
 over: every file below is regenerated for whichever state the repo is in.
@@ -634,7 +634,7 @@ the test (CLAUDE.md rule 16).
 **Step 7.5: plan.** This section, rewritten for instruction 07.
 
 Review evidence (`review/section_7.md`, instruction 07 H): the page counts and image
-height; the full text of `Results_Summary.pdf` and page 1 of `Design_Response.pdf`; PNG
+height; the full text of `RMBS_Query_Results.pdf` and page 1 of `RMBS_Query_Design_Note.pdf`; PNG
 renders of every page in `review/section_7_pages/` (pypdfium2 if installed, or pdftoppm on
 PATH, otherwise noted as not rendered); the constructed recorded-state summary's page
 count and text, marked as made-up; the neutrality grep result; and both pytest outputs
