@@ -1,6 +1,6 @@
-# Querying RMBS trustee data in natural language: results
+# Querying RMBS trustee data in natural language, prototype results
 
-A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. These results come from a working prototype on synthetic data: {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months, in 2 trustee formats.
+A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. These results come from a working prototype on synthetic data, covering {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months, in 2 trustee formats.
 
 ## Test results
 
@@ -20,20 +20,20 @@ A language model converts each question into a structured query spec, and a comp
 {{#eval}}
 ## Compared with direct SQL
 
-Same 40 questions, with the same table and metric definitions in the direct SQL model's prompt. Neither approach returned an incorrect number; every miss on both sides was a refusal to answer. On ambiguous questions, the compiled approach asked what was meant, where direct SQL declined without explanation.
+Same 40 questions, with the same table and metric definitions in the direct SQL model's prompt. Neither approach returned an incorrect number, and every miss on both sides was a refusal to answer. On ambiguous questions, the compiled approach asked what was meant, where direct SQL declined without explanation.
 
 {{eval_table}}
 
 ![Accuracy by category](outputs/figures/eval_accuracy.png)
 
-Asked "What are arrears in NSW?", the compiled approach replied:
+Asked "What are arrears in NSW?", the compiled approach replied with a question.
 
 {{clarify_transcript}}
 {{/eval}}
 {{^eval}}
 ## Compared with direct SQL
 
-The 40-question test set compares the 2 approaches, but it hasn't been run in this copy, because it needs an Anthropic API key and none is stored. It takes 2 commands, and this page then regenerates with the results:
+The 40-question test set compares the 2 approaches, but it hasn't been run in this copy, because it needs an Anthropic API key and none is stored. It takes 2 commands, and this page then regenerates with the results.
 
     $env:ANTHROPIC_API_KEY = "<your key>"
     python scripts/run_eval.py --mode record

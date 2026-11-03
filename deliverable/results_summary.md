@@ -1,6 +1,6 @@
-# Querying RMBS trustee data in natural language: results
+# Querying RMBS trustee data in natural language, prototype results
 
-A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. These results come from a working prototype on synthetic data: 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months, in 2 trustee formats.
+A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. These results come from a working prototype on synthetic data, covering 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months, in 2 trustee formats.
 
 ## Test results
 
@@ -26,7 +26,7 @@ A language model converts each question into a structured query spec, and a comp
 
 ## Compared with direct SQL
 
-Same 40 questions, with the same table and metric definitions in the direct SQL model's prompt. Neither approach returned an incorrect number; every miss on both sides was a refusal to answer. On ambiguous questions, the compiled approach asked what was meant, where direct SQL declined without explanation.
+Same 40 questions, with the same table and metric definitions in the direct SQL model's prompt. Neither approach returned an incorrect number, and every miss on both sides was a refusal to answer. On ambiguous questions, the compiled approach asked what was meant, where direct SQL declined without explanation.
 
 | category | questions | compiled approach | direct SQL |
 |---|---|---|---|
@@ -40,7 +40,7 @@ Same 40 questions, with the same table and metric definitions in the direct SQL 
 
 ![Accuracy by category](outputs/figures/eval_accuracy.png)
 
-Asked "What are arrears in NSW?", the compiled approach replied:
+Asked "What are arrears in NSW?", the compiled approach replied with a question.
 
     Which arrears measure do you want for NSW?
     Options: 30+ days past due; 90+ days past due

@@ -2,7 +2,7 @@
 
 Ask questions of loan-level RMBS data in ordinary language, and get answers you can verify. A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. Each answer comes with its spec, its Oracle SQL and its result table, and any number in the answer text that isn't in the table is rejected.
 
-All data here is synthetic: 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months from 2021-10 to 2026-09, in 2 trustee formats with the inconsistencies real trustee data has. The reasoning behind the design is in [docs/DESIGN_RESPONSE.md](docs/DESIGN_RESPONSE.md).
+All data here is synthetic, covering 50 Australian RMBS deals, 21,945 loans and 773,336 loan-months from 2021-10 to 2026-09, in 2 trustee formats with the inconsistencies real trustee data has. The reasoning behind the design is in [docs/DESIGN_RESPONSE.md](docs/DESIGN_RESPONSE.md).
 
 ## Results
 

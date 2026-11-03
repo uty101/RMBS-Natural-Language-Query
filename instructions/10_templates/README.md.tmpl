@@ -2,7 +2,7 @@
 
 Ask questions of loan-level RMBS data in ordinary language, and get answers you can verify. A language model converts each question into a structured query spec, and a compiler turns the spec into SQL using metric definitions held in code, so the model never does the arithmetic. Each answer comes with its spec, its Oracle SQL and its result table, and any number in the answer text that isn't in the table is rejected.
 
-All data here is synthetic: {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months from 2021-10 to 2026-09, in 2 trustee formats with the inconsistencies real trustee data has. The reasoning behind the design is in [docs/DESIGN_RESPONSE.md](docs/DESIGN_RESPONSE.md).
+All data here is synthetic, covering {{n_deals}} Australian RMBS deals, {{n_loans}} loans and {{n_loan_months}} loan-months from 2021-10 to 2026-09, in 2 trustee formats with the inconsistencies real trustee data has. The reasoning behind the design is in [docs/DESIGN_RESPONSE.md](docs/DESIGN_RESPONSE.md).
 
 ## Results
 
@@ -19,7 +19,7 @@ Overall, the compiled approach got {{sys_total_k}} of {{sys_total_n}} ({{sys_tot
 ![Accuracy by category](outputs/figures/eval_accuracy.png)
 {{/eval}}
 {{^eval}}
-**The test set hasn't been run in this copy.** It compares this approach with a model writing SQL directly, on 40 questions, and needs an Anthropic API key, which is never stored in the repo. With your own key, in PowerShell from the repo root:
+**The test set hasn't been run in this copy.** It compares this approach with a model writing SQL directly, on 40 questions, and needs an Anthropic API key, which is never stored in the repo. Run these with your own key, in PowerShell from the repo root.
 
     $env:ANTHROPIC_API_KEY = "<your key>"
     python scripts/run_eval.py --mode record

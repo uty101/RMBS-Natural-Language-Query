@@ -25,8 +25,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
-from reportlab.platypus import (Image, ListFlowable, ListItem, Paragraph, Preformatted, SimpleDocTemplate,
-                                Spacer, Table, TableStyle)
+from reportlab.platypus import (Image, KeepTogether, ListFlowable, ListItem, Paragraph, Preformatted,
+                                SimpleDocTemplate, Spacer, Table, TableStyle)
 
 rl_config.invariant = 1
 
@@ -229,7 +229,8 @@ def _table(header, body, line, st, font, width) -> Table:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     t.spaceAfter = st["body"].spaceAfter
-    return t
+    # keep each table on 1 page; every table here is short, so it moves whole rather than splitting
+    return KeepTogether([t])
 
 
 def _image(path: Path, kind: str, width: float, image_height_cm: float | None) -> Image:
